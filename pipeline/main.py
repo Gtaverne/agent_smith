@@ -31,7 +31,7 @@ def _summarizeMainArticle(text: str) -> str:
     Receive the text of the main article and returns the topic to research
     """
     system = """You are an assistant used to summarize a press article. 
-    Your mission is to return six keywords summarizing the article's topic, separated by commas."""
+    Your mission is to return four keywords summarizing the article's topic, separated by commas."""
     return call_claude(system, text)
 
 def _getArticles(summary: str) -> List[Dict[str, str]]:

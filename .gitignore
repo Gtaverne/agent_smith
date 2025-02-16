@@ -12,3 +12,4 @@ wheels/
 claude-env/*
 .gitignore
 data/*
+.env
