@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 import json
 
 from systemPrompts import systemPromptFindOpposition
-from callClaude import call_claude
+from callClaude import call_claude, call_claude_forceArticleList
 
 from search import fetch_articles_main
 
@@ -68,7 +68,7 @@ def _getOppositePointsOfView(textMainArticle: str, articles: List[Dict[(str,str)
         "list_of_articles": {jsonListArticles}
     }}
     """
-    claudeOutput =  call_claude(systemPromptFindOpposition, textPrompt)
+    claudeOutput =  call_claude_forceArticleList(systemPromptFindOpposition, textPrompt)
     list = json.loads(claudeOutput)
     return [(elem["content"], indexToArti[elem["index"]]) for elem in list]
 
