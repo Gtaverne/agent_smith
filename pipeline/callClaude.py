@@ -63,7 +63,6 @@ def call_claude_forceArticleList(systemPrompt, text):
                 "role": "user",
                 "content": [
                     {"type": "text", "text": text},
-                    {"type": "text", "text": "Describe this image."},
                 ],
             }
         ],
