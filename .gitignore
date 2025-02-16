@@ -13,3 +13,9 @@ claude-env/*
 .gitignore
 data/*
 .env
+client/node_modules
+*/bin/
+*/include/
+*/lib/
+*/pyvenv.cfg
+.DS_Store
