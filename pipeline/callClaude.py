@@ -68,5 +68,5 @@ def call_claude_forceArticleList(systemPrompt, text):
         ],
     )
     logger.debug(message)
-    output = message.to_dict()["content"][0]["text"]
+    output = message.to_dict()["content"][0]["input"]
     return output
