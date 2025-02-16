@@ -69,7 +69,7 @@ def _getOppositePointsOfView(textMainArticle: str, articles: List[Dict[(str,str)
     # Let json.dumps handle the escaping
     textPrompt = json.dumps(input_data)
     
-    claudeOutput = call_claude(systemPromptFindOpposition, textPrompt)
+    claudeOutput = call_claude_forceArticleList(systemPromptFindOpposition, textPrompt)
     opposing_list = json.loads(claudeOutput)
     return [(elem["contradiction"], indexToArti[elem["index"]]) for elem in opposing_list]
 
