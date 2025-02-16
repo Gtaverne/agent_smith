@@ -13,9 +13,7 @@ def main(textMainArticle) -> str:
     """
     summary = _summarizeMainArticle(textMainArticle)
     articles : List[Dict[str, str]] = _getArticles(summary)
-    print(articles)
     opposingArguments : List[Tuple[str, Dict]] = _getOppositePointsOfView(textMainArticle, articles)
-    print(opposingArguments)
 
     opposingText = ""
     opposingArticles = []
