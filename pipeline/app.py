@@ -3,11 +3,17 @@ import os
 from typing import List
 
 import uvicorn
+from anthropic import Anthropic
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from firecrawl import FirecrawlApp
+from loguru import logger
 from main import main
 from pydantic import BaseModel
+
+load_dotenv()
+client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 app = FastAPI(
     title="Counter Arguments API",
@@ -22,7 +28,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
-
 firecrapp = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 
 
@@ -54,13 +59,13 @@ async def analyze_article(article: ArticleInput):
     """
     try:
         # Call the existing pipeline
-        print(article)
+        logger.debug(article)
         response = firecrapp.scrape_url(
             url=article.content, params={"formats": ["markdown"]}
         )
-        result = main(response['markdown'])
+        result = main(response["markdown"])
         # Parse the JSON string returned by main()
-        print(result)
+        logger.debug(result)
         parsed_result = json.loads(result)
         return OpposingViewResponse(
             summary=parsed_result["summary"], articles=parsed_result["articles"]

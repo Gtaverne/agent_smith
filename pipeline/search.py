@@ -1,23 +1,23 @@
 import html
+import json
 import os
 import re
+import time
 from datetime import datetime
+from urllib.parse import quote, urlparse
 
 import feedparser
 import requests
-from anthropic import Anthropic
 from dotenv import load_dotenv
-from firecrawl import FirecrawlApp
 from loguru import logger
 from playwright.sync_api import sync_playwright
 from rich import print as rprint
+from selectolax.parser import HTMLParser
 
 load_dotenv()
 
 DEBUG = os.environ.get("DEBUG", "false").lower() in ("true", "1")
 MAX_ARTICLES = 5
-client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-app = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 
 
 def fetch_with_playwright(url: str) -> dict:
@@ -34,13 +34,6 @@ def fetch_with_playwright(url: str) -> dict:
             return {}
         finally:
             browser.close()
-
-
-import json
-import time
-from urllib.parse import quote, urlparse
-
-from selectolax.parser import HTMLParser
 
 
 class GoogleDecoder:

@@ -1,12 +1,16 @@
+import os
+
 import anthropic
+from anthropic import Anthropic
+from dotenv import load_dotenv
 from loguru import logger
+
+load_dotenv()
+
+client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 
 def call_claude(systemPrompt, text):
-    api_key = "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"
-    client = anthropic.Anthropic()
-    client.api_key = api_key
-
     message = client.messages.create(
         model="claude-3-5-sonnet-20241022",
         max_tokens=1000,
@@ -20,10 +24,6 @@ def call_claude(systemPrompt, text):
 
 
 def call_claude_forceArticleList(systemPrompt, text):
-    api_key = "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"
-    client = anthropic.Anthropic()
-    client.api_key = api_key
-
     message = anthropic.Anthropic().messages.create(
         model="claude-3-5-sonnet-20241022",
         max_tokens=1024,

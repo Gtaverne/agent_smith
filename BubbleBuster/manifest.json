@@ -7,5 +7,6 @@
     "default_popup": "popup.html",
     "default_title": "Bubble Buster"
   },
-  "host_permissions": ["http://localhost:8000/*"]
+  "host_permissions": ["http://localhost:8000/*"],
+  "permissions": ["activeTab", "tabs"]
 }
