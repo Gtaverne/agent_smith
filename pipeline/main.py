@@ -53,35 +53,38 @@ def _getOppositePointsOfView(textMainArticle: str, articles: List[Dict[(str,str)
         article["index"] = index+1
     indexToArti = {arti["index"]: arti for arti in articles}
 
-    def _promptElemOneArticle(article: Dict[str, str]) -> str:
-        return "{"+f"""
-        "index": {article["index"]},
-        "title": "{article["title"]}",
-        "content": "{article["text"]}"
-        """+"}"
+    # Create the input structure as a Python dictionary
+    input_data = {
+        "main_article": {
+            "content": textMainArticle
+        },
+        "list_of_articles": [
+            {
+                "index": article["index"],
+                "title": article["title"],
+                "content": article["text"]
+            } 
+            for article in articles
+        ]
+    }
     
-    jsonListArticles = "[" + ",".join([_promptElemOneArticle(arti) for arti in articles]) + "]"
-    textPrompt = f"""{{
-        "main_article": {{
-            "content": "{textMainArticle}"
-        }},
-        "list_of_articles": {jsonListArticles}
-    }}
-    """
-    claudeOutput =  call_claude_forceArticleList(systemPromptFindOpposition, textPrompt)
-    list = json.loads(claudeOutput)
-    return [(elem["content"], indexToArti[elem["index"]]) for elem in list]
+    # Let json.dumps handle the escaping
+    textPrompt = json.dumps(input_data)
+    
+    claudeOutput = call_claude(systemPromptFindOpposition, textPrompt)
+    opposing_list = json.loads(claudeOutput)
+    return [(elem["content"], indexToArti[elem["index"]]) for elem in opposing_list]
+
 
 def _formatOutputForFrontend(opposingArticles: List[Dict[str, str]], finalSummary: str) -> str:
-    listArticleLinks = ["\""+arti["link"]+"\"" for arti in opposingArticles]
-    json = f"""
-    {{
-        "summary": "{finalSummary}",
-        "articles": [{",".join(listArticleLinks)}]
-    }}
-    """
-    return json
-
+    # Create the output structure as a Python dictionary
+    output_data = {
+        "summary": finalSummary,
+        "articles": [article["link"] for article in opposingArticles]
+    }
+    
+    # Let json.dumps handle the escaping
+    return json.dumps(output_data)
 
 if __name__ == "__main__":
 
