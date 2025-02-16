@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Bubble Buster 🫧",
+  "version": "1.0",
+  "description": "Analyze article content using Bubble Buster",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Bubble Buster"
+  },
+  "host_permissions": ["http://localhost:8000/*"]
+}

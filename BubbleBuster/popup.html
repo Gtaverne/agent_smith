@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Bubble Buster 🫧</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <span class="logo">🫧</span>
+        <h1>Bubble Buster</h1>
+      </div>
+      <textarea id="articleContent" placeholder="Text of the article"></textarea>
+      <button id="submitBtn">Submit</button>
+      <div id="loader" class="loader hidden">Loading...</div>
+      <div id="result" class="result hidden">
+        <h2>Analysis Result</h2>
+        <div class="summary">
+          <h3>Summary:</h3>
+          <p id="summaryText"></p>
+        </div>
+        <div class="articles">
+          <h3>Opposing Articles:</h3>
+          <ul id="articlesList"></ul>
+        </div>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
