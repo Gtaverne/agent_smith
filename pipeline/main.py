@@ -14,7 +14,6 @@ def main(textMainArticle) -> str:
     summary = _summarizeMainArticle(textMainArticle)
     articles : List[Dict[str, str]] = _getArticles(summary)
     print(articles)
-    exit 
     opposingArguments : List[Tuple[str, Dict]] = _getOppositePointsOfView(textMainArticle, articles)
     print(opposingArguments)
 
@@ -31,7 +30,8 @@ def _summarizeMainArticle(text: str) -> str:
     """
     Receive the text of the main article and returns the topic to research
     """
-    system = "You are an assistant used to summarize a press article. Your mission is to return a single sentence describing the topic of the article."
+    system = """You are an assistant used to summarize a press article. 
+    Your mission is to return six keywords summarizing the article's topic, separated by commas."""
     return call_claude(system, text)
 
 def _getArticles(summary: str) -> List[Dict[str, str]]:
