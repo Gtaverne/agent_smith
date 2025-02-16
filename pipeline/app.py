@@ -3,7 +3,6 @@ import os
 from typing import List
 
 import uvicorn
-from anthropic import Anthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +12,6 @@ from main import main
 from pydantic import BaseModel
 
 load_dotenv()
-client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 app = FastAPI(
     title="Counter Arguments API",
