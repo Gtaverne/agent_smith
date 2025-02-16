@@ -5,14 +5,15 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-"anthropic>=0.45.2",
-"beautifulsoup4>=4.13.3",
-"feedparser>=6.0.11",
-"firecrawl>=1.12.0",
-"loguru>=0.7.3",
-"lxml[html-clean]>=5.3.1",
-"mcp>=1.2.1",
-"newspaper3k>=0.2.8",
-"requests>=2.32.3",
-"rich>=13.9.4",
+    "anthropic>=0.45.2",
+    "beautifulsoup4>=4.13.3",
+    "feedparser>=6.0.11",
+    "firecrawl>=1.12.0",
+    "loguru>=0.7.3",
+    "lxml[html-clean]>=5.3.1",
+    "mcp>=1.2.1",
+    "newspaper3k>=0.2.8",
+    "playwright>=1.50.0",
+    "requests>=2.32.3",
+    "rich>=13.9.4",
 ]
