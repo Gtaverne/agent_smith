@@ -82,11 +82,11 @@ def _getOppositePointsOfView(
     logger.debug(f"Created textPrompt with length {len(textPrompt)}")
     claudeOutput = call_claude_forceArticleList(systemPromptFindOpposition, textPrompt)
     logger.info("Received response from Claude")
-    opposing_list = json.loads(claudeOutput)
+    opposing_list = claudeOutput #json.loads(claudeOutput)
     logger.debug(f"Parsed Claude output, found {len(opposing_list)} opposing points")
 
     result = [
-        (elem["contradiction"], indexToArti[elem["index"]]) for elem in opposing_list
+        (elem["contradiction"], indexToArti[elem["index"]]) for elem in opposing_list["articles"]
     ]
     logger.info(f"Returning {len(result)} opposing points of view")
     return result
@@ -107,29 +107,35 @@ def _formatOutputForFrontend(
 
 if __name__ == "__main__":
     TEST_ARTICLE = """
+Talks involving Secretary of State Marco Rubio and two other senior Trump officials would be the first between American and Russian delegations since the start of Russia’s full-scale invasion of Ukraine in February 2022.
+Two men in suits sit in a room with ornate decorations.
+President Trump with Secretary of State Marco Rubio in the Oval Office on Tuesday.Credit...Eric Lee/The New York Times
 
-    Internet search trends in the Washington, DC, metro area have been nothing short of stunning in recent weeks, reflecting what appears to be growing panic within the federal bureaucracy as President Trump and Elon Musk's Department of Government Efficiency (DOGE) root out corruption in non-governmental organizations (NGO) and federal agencies.
+    Published Feb. 15, 2025Updated Feb. 16, 2025, 10:38 a.m. ET
 
-    Earlier this week, internet search trends for "Criminal Defense Lawyer" and "RICO Laws" went viral on X, fueling speculation that Washington's political elites were in panic mode. The searches coincided with DOGE's efforts to neuter USAID's funding of NGOs that propped up a shadow government, as well as begin cutting tens of thousands of workers from various federal agencies.
+Three top foreign policy aides in the Trump administration plan to meet with Russian officials in Saudi Arabia next week to discuss a path to ending the war in Ukraine, the first substantial talks between the superpowers on the conflict.
 
-    DC Internet Searches For "Criminal Defense Lawyer" & "RICO Law" Erupt As DOGE Drains Swamp https://t.co/4ytzi4YcgV
+The meeting would come less than a week after President Trump spoke on the phone with President Vladimir V. Putin of Russia. Mr. Trump told reporters afterward that talks on ending Russia’s war in Ukraine would take place in Saudi Arabia. The plan for meetings next week in Riyadh was described to reporters on Saturday by a person familiar with the schedule who spoke on condition of anonymity to discuss national security concerns.
 
-    — zerohedge (@zerohedge) February 13, 2025
-    Now, more suspicious search trends have erupted among DC residents as DOGE efforts went into beast mode at the end of the week.
+The meeting will most likely draw criticism from some top Ukrainian officials. President Volodymyr Zelensky of Ukraine said Thursday that his country must be involved in any talks over its own fate, a statement he made after learning about the Trump-Putin call. Ukrainian officials fear Mr. Trump could try to reach a deal with the Russians that would not have strong security guarantees or viable terms for an enduring peace for Ukraine, which has been trying to repel a full-scale Russian invasion for three years.
 
-    "Washington DC searches soar for "Swiss bank" (yellow), "offshore bank" (green), "wire money" (red) and "IBAN" (blue)," WikiLeaks wrote on X late Thursday.
+The top American officials who plan to attend are Marco Rubio, the secretary of state; Mike Waltz, the national security adviser; and Steve Witkoff, the Middle East envoy who also works on Ukraine-Russia issues, the person familiar with the schedule said.
 
-    Washington DC searches soar for "Swiss bank" (yellow), "offshore bank" (green), "wire money" (red) and "IBAN" (blue) pic.twitter.com/OBEg0hW8g0
+When asked whether any Ukrainian officials would attend, the person did not say — a sign that Ukraine will probably not take part in the talks, despite Mr. Trump’s saying this week that Ukrainians would participate in discussions in Saudi Arabia.
 
-    — WikiLeaks (@wikileaks) February 13, 2025
-    Search terms "Wipe" (blue) and "Erase" (red) also moved higher in recent weeks. Wipe hard drives?
+Mr. Rubio and Vice President JD Vance met with Mr. Zelensky at the Munich Security Conference on Friday.
 
-    Washington DC searches soar for "wipe" (blue) and "erase" (red) according to Google trends data. pic.twitter.com/WTbK1C1zxy
+Mr. Rubio, the top American diplomat, spoke Saturday on the phone with Sergey V. Lavrov, the foreign minister of Russia, as Mr. Rubio traveled from Munich to Israel.
 
-    — WikiLeaks (@wikileaks) February 14, 2025
-    Well, yes, the search term "wipe hard drive" across the DC metro has gone absolutely parabolic.
+The call was the Trump administration’s latest step in reversing the Biden administration’s attempts to isolate Russia diplomatically.
 
-"""
+Mr. Rubio “reaffirmed President Trump’s commitment to finding an end to the conflict in Ukraine,” a State Department spokeswoman, Tammy Bruce, said in a written summary of the call. “In addition, they discussed the opportunity to potentially work together on a number of other bilateral issues.”
+
+The Russian summary of the call said the two top diplomats agreed to address barriers to cooperation on a range of issues that had been erected by the Biden administration. It also said the two diplomats would speak regularly and prepare for a summit between their presidents, and the governments would work to restore the work of each other’s diplomatic missions.
+
+In addition, the Russian summary said, “a mutual commitment to interaction on current international issues was outlined, including the settlement around Ukraine, the situation around Palestine and in the Middle East as a whole and in other regional areas.”
+
+Mr. Rubio planned to go to Saudi Arabia and the United Arab Emirates after stopping in Israel on his first trip in the Middle East.  """
 
     print("\n\n\n")
     print(main(TEST_ARTICLE))
