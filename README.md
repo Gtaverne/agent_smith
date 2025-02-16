@@ -7,7 +7,7 @@
 python3 -m venv name_of_your_environment
 
 ## Activate this environment
-Then activate source name_of_your_environment/bin/activate
+Then activate `source name_of_your_environment/bin/activate`
 
 ## Install the dependencies
 Go to the root of the repo (not client or pipeline) and use `pip install -r requirements.txt`

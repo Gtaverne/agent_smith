@@ -38,7 +38,7 @@ def _summarizeMainArticle(text: str) -> str:
     Receive the text of the main article and returns the topic to research
     """
     system = """You are an assistant used to summarize a press article.
-    Your mission is to return four keywords summarizing the article's topic, separated by commas."""
+    Your mission is to return 3 keywords summarizing the article's topic, separated by commas."""
     output = call_claude(system, text)
     logger.info("Summarized main article")
     return output
