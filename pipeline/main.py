@@ -43,7 +43,7 @@ def _getOppositePointsOfView(textMainArticle: str, articles: List[Dict[(str,str)
     Returns a list of points opposing the main article along with the article that supports that point
     """
     for index, article in enumerate(articles):
-        article["index"] = index
+        article["index"] = index+1
     indexToArti = {arti["index"]: arti for arti in articles}
 
     def _promptElemOneArticle(article: Dict[str, str]) -> str:
