@@ -9,8 +9,7 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 from firecrawl import FirecrawlApp
 from loguru import logger
-from newspaper import Article
-from newspaper.article import ArticleException
+from playwright.sync_api import sync_playwright
 from rich import print as rprint
 
 load_dotenv()
@@ -19,6 +18,22 @@ DEBUG = os.environ.get("DEBUG", "false").lower() in ("true", "1")
 MAX_ARTICLES = 2
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 app = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
+
+
+def fetch_with_playwright(url: str) -> dict:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, slow_mo=1000)
+        try:
+            context = browser.new_context()
+            page = context.new_page()
+            page.goto(url, wait_until="networkidle", timeout=300)
+            content = page.content()
+            return {"text": content, "source": "playwright"}
+        except Exception as e:
+            logger.error(f"Playwright error: {str(e)}")
+            return {}
+        finally:
+            browser.close()
 
 
 class GoogleNewsFetcher:
@@ -50,38 +65,20 @@ class GoogleNewsFetcher:
         Returns:
             Optional[Dict]: Parsed article data or None if all methods fail
         """
-        # Try Firecrawl first
+        response = app.scrape_url(url=url, params={"formats": ["markdown"]})
+        if response.get("markdown"):
+            logger.info(
+                f"Firecrawl response (first 100 characters): {response['markdown'][:100]}"
+            )
+            return {"text": response["markdown"], "source": "firecrawl"}
+        else:
+            logger.error(f"Firecrawl returned empty markdown for {url}")
+
+        # Fallback to Playwright if Firecrawl fails
         try:
-            response = app.scrape_url(url=url, params={"formats": ["markdown"]})
-            breakpoint()
-            if response.get("markdown"):
-                logger.info(
-                    f"Firecrawl response (first 100 characters): {response['markdown'][:10]}"
-                )
-                return {"text": response["markdown"], "source": "firecrawl"}
+            return fetch_with_playwright(url)
         except Exception as e:
-            logger.warning(f"Firecrawl failed for {url}: {str(e)}")
-
-        # If Firecrawl fails, try newspaper3k
-        try:
-            article = Article(url, language="fr")
-            article.download()
-            article.parse()
-            article.nlp()  # Enables summary and keywords extraction
-
-            return {
-                "text": article.text,
-                "summary": article.summary,
-                "keywords": article.keywords,
-                "authors": article.authors,
-                "publish_date": article.publish_date.isoformat()
-                if article.publish_date
-                else None,
-                "source": "newspaper3k",
-            }
-
-        except ArticleException as e:
-            logger.error(f"Error parsing article {url} with newspaper3k: {str(e)}")
+            logger.warning(f"Playwright failed for {url}: {str(e)}")
 
         # If all methods fail, return None
         logger.error(f"Failed to fetch content from {url} using all available methods.")
