@@ -15,7 +15,7 @@ from rich import print as rprint
 load_dotenv()
 
 DEBUG = os.environ.get("DEBUG", "false").lower() in ("true", "1")
-MAX_ARTICLES = 2
+MAX_ARTICLES = 5
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 app = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 

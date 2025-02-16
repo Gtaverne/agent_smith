@@ -28,6 +28,7 @@ def main(textMainArticle) -> str:
         opposingText += argu
         opposingArticles.append(arti)
 
+    opposingText = _prettifySummary(opposingText)
     output = _formatOutputForFrontend(opposingArticles, opposingText)
     logger.info("Formatted output for frontend")
     return output
@@ -104,6 +105,9 @@ def _formatOutputForFrontend(
     # Let json.dumps handle the escaping
     return json.dumps(output_data)
 
+def _prettifySummary(summary: str) -> str:
+    system = """You are an assistant used to clean up a summary and make it punchier and more engaging. Please just reword the paragraph you receive, do not explain what you did. Also, do not refer to the documents or article mentioned. Do not say "this article says X" and just say "X". """
+    return call_claude(system, summary)
 
 if __name__ == "__main__":
     TEST_ARTICLE = """

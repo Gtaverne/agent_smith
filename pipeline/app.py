@@ -1,9 +1,11 @@
 import json
+import os
 from typing import List
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from firecrawl import FirecrawlApp
 from main import main
 from pydantic import BaseModel
 
@@ -20,6 +22,8 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+firecrapp = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 
 
 class ArticleInput(BaseModel):
@@ -51,7 +55,10 @@ async def analyze_article(article: ArticleInput):
     try:
         # Call the existing pipeline
         print(article)
-        result = main(article.content)
+        response = firecrapp.scrape_url(
+            url=article.content, params={"formats": ["markdown"]}
+        )
+        result = main(response['markdown'])
         # Parse the JSON string returned by main()
         print(result)
         parsed_result = json.loads(result)
