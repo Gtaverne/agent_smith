@@ -34,35 +34,28 @@ def call_claude_forceArticleList(systemPrompt, text):
         model="claude-3-5-sonnet-20241022",
         max_tokens=1024,
         tools=[
-            {
-                "name": "record_summary",
-                "description": "Record summary of an image using well-structured JSON.",
-                "input_schema": {
+        {
+            "name": "record_summary",
+            "description": "Record summary of an image using well-structured JSON.",
+            "input_schema": {
+                "type": "array",
+                "items": {
                     "type": "object",
                     "properties": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "index": {
-                                    "type": "integer",
-                                    "description": "The index of the article."
-                                },
-                                "title": {
-                                    "type": "string",
-                                    "description": "The title of the article."
-                                },
-                                "contradiction": {
-                                    "type": "string",
-                                    "description": "A few sentences to describe the main way in which this article contradicts the main article."
-                                }
-                            }
+                        "index": {
+                            "type": "integer",
+                            "description": "The index of the article."
+                        },
+                        "contradiction": {
+                            "type": "string",
+                            "description": "A few sentences to describe the main way in which this article contradicts the main article."
                         }
                     },
-                    "required": ["key_colors", "description"],
-                },
+                    "required": ["index", "contradiction"]
+                }
             }
-        ],
+        }
+    ],
         tool_choice={"type": "tool", "name": "record_summary"},
         system=systemPrompt,
         messages=[

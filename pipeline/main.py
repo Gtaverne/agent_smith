@@ -73,7 +73,7 @@ def _getOppositePointsOfView(textMainArticle: str, articles: List[Dict[(str,str)
     
     claudeOutput = call_claude(systemPromptFindOpposition, textPrompt)
     opposing_list = json.loads(claudeOutput)
-    return [(elem["content"], indexToArti[elem["index"]]) for elem in opposing_list]
+    return [(elem["contradiction"], indexToArti[elem["index"]]) for elem in opposing_list]
 
 
 def _formatOutputForFrontend(opposingArticles: List[Dict[str, str]], finalSummary: str) -> str:
@@ -117,4 +117,5 @@ if __name__ == "__main__":
     # finalSummary = "This is the final summary"
     # print(_formatOutputForFrontend(opposingArticles, finalSummary))
 
+    print("\n\n\n")
     print(main(TEST_ARTICLE))
