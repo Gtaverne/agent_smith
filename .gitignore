@@ -11,4 +11,5 @@ wheels/
 
 claude-env/*
 .gitignore
-front/node_modules
+data/*
+.env
