@@ -1,0 +1,35 @@
+[project]
+name = "agent-smith-tuto"
+version = "0.1.0"
+description = "An agentic AI exploration project with Model Context Protocol"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # Core
+    "discord.py==2.4.0",
+    "httpx==0.28.1",
+    "chromadb==0.6.3",
+    "python-dotenv==1.0.1",
+    
+    # Vision and OCR
+    "paddleocr==2.9.1",
+    "easyocr==1.7.2",
+    
+    # Utils
+    "colorama==0.4.6",
+    "watchdog==6.0.0",
+    
+    # Data processing
+    "numpy==1.26.4",  # Required by several dependencies
+    "pillow==11.1.0",  # Required for image processing
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I", "N", "W", "UP", "B"]
+ignore = []
+target-version = "py312"

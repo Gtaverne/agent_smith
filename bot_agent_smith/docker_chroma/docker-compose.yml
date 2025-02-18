@@ -1,0 +1,28 @@
+services:
+  agent_memory:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: agent_smith_memory
+    environment:
+      - ALLOW_RESET=true
+      - CHROMA_SERVER_AUTH_CREDENTIALS_FILE=/auth_credentials.json
+      - CHROMA_SERVER_AUTH_CREDENTIALS=admin:admin
+      - CHROMA_SERVER_AUTH_TYPE=basic
+    volumes:
+      - agent_memory_data:/chroma/chroma
+    ports:
+      - "8184:8000"
+    networks:
+      - agent_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  agent_memory_data:
+    driver: local
+
+networks:
+  agent_net:
+    driver: bridge
