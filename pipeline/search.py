@@ -14,6 +14,7 @@ from playwright.sync_api import sync_playwright
 from rich import print as rprint
 from selectolax.parser import HTMLParser
 
+
 load_dotenv()
 
 DEBUG = os.environ.get("DEBUG", "false").lower() in ("true", "1")
@@ -266,7 +267,8 @@ class GoogleNewsFetcher:
         Returns:
             Optional[Dict]: Parsed article data or None if all methods fail
         """
-        response = app.scrape_url(url=url, params={"formats": ["markdown"]})
+        from app import firecrapp
+        response = firecrapp.scrape_url(url=url, params={"formats": ["markdown"]})
         if response.get("markdown"):
             logger.info(
                 f"Firecrawl response (first 100 characters): {response['markdown'][:100]}"

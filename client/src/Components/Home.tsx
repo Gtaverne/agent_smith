@@ -8,53 +8,56 @@ import {
   Text,
   List,
   Loader,
-} from "@mantine/core";
+} from '@mantine/core'
 
-import React, { useState } from "react";
+import React, { useState } from 'react'
 
 const Home = () => {
-  const [articleContent, setArticleContent] = useState("");
+  const [articleContent, setArticleContent] = useState('')
   const [analysisResult, setAnalysisResult] = useState<{
-    summary: string;
-    articles: string[];
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+    summary: string
+    articles: string[]
+  } | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      const response = await fetch("http://localhost:8000/analyze", {
-        method: "POST",
+      console.log('article content', articleContent)
+      const response = await fetch('http://localhost:8000/analyze', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ content: articleContent }),
-        mode: "cors",
-        credentials: "include",
-      });
+        mode: 'cors',
+        credentials: 'include',
+      })
       if (!response.ok) {
-        throw new Error("Network response was not ok");
+        throw new Error('Network response was not ok')
       }
-      const data: { summary: string; articles: string[] } =
-        await response.json();
-      setAnalysisResult(data);
+      const data: {
+        summary: string
+        articles: string[]
+      } = await response.json()
+      setAnalysisResult(data)
     } catch (error) {
-      console.error("Error:", error);
+      console.error('Error:', error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <Box
       style={{
-        margin: "0 auto",
-        maxWidth: "1000px",
-        width: "100%",
-        padding: "0 16px",
+        margin: '0 auto',
+        maxWidth: '1000px',
+        width: '100%',
+        padding: '0 16px',
       }}
     >
-      <Stack style={{ justifyContent: "center" }}>
+      <Stack style={{ justifyContent: 'center' }}>
         <Title order={1}>Article</Title>
         <Textarea
           placeholder="Text of the article"
@@ -73,7 +76,7 @@ const Home = () => {
             onClick={handleSubmit}
             disabled={isLoading}
           >
-            {isLoading ? <Loader size="sm" /> : "Submit"}
+            {isLoading ? <Loader size="sm" /> : 'Submit'}
           </Button>
         </Center>
         {analysisResult && (
@@ -99,7 +102,7 @@ const Home = () => {
         )}
       </Stack>
     </Box>
-  );
-};
+  )
+}
 
-export default Home;
+export default Home

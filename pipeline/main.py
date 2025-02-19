@@ -29,6 +29,7 @@ def main(textMainArticle) -> str:
         opposingArticles.append(arti)
 
     opposingText = _prettifySummary(opposingText)
+    print("oppositeText", opposingText)
     output = _formatOutputForFrontend(opposingArticles, opposingText)
     logger.info("Formatted output for frontend")
     return output

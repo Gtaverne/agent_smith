@@ -18,6 +18,7 @@ app = FastAPI(
     description="API for finding opposing viewpoints to articles",
     version="1.0.0",
 )
+print("app from app.py", app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,6 +58,8 @@ async def analyze_article(article: ArticleInput):
     """
     try:
         # Call the existing pipeline
+        # print("article", article)
+        logger.info("I pass here as starting point")
         logger.debug(article)
         response = firecrapp.scrape_url(
             url=article.content, params={"formats": ["markdown"]}
