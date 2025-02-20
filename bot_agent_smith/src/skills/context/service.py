@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from src.core.types import Message, UserProfile
 from src.orchestration.services.registry import ServiceProtocol
@@ -23,7 +23,7 @@ class ContextWindow:
 
     def is_stale(self) -> bool:
         """Check if the context needs to be refreshed"""
-        return datetime.utcnow() - self.metadata.last_updated > self.metadata.ttl
+        return datetime.now(UTC) - self.metadata.last_updated > self.metadata.ttl
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert context to a format suitable for LLM input"""
@@ -98,7 +98,7 @@ class ContextService(ServiceProtocol):
 
         # Create metadata
         metadata = ContextMetadata(
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(UTC),
             window_size=self.window_size,
             ttl=self.ttl
         )
@@ -127,5 +127,5 @@ class ContextService(ServiceProtocol):
         window.messages.append(message)
         if len(window.messages) > window.metadata.window_size:
             window.messages = window.messages[-window.metadata.window_size:]
-        window.metadata.last_updated = datetime.utcnow()
+        window.metadata.last_updated = datetime.now(UTC)
         return window

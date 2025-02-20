@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, UTC
 from langgraph.graph import StateGraph, END
 
 from src.interfaces.types import CommunicationEvent, ChannelAdapter
@@ -25,8 +25,45 @@ class Agent:
     adapters: Dict[str, ChannelAdapter] = field(default_factory=dict)
     
     def __post_init__(self):
-        """Initialize LangGraph workflows"""
-        self.workflows = self._initialize_workflows()
+        """Initialize services and LangGraph workflows"""
+        # Initialize Ollama client and service
+        from src.llm.ollama import create_ollama_client
+        from src.llm.service import LLMService
+        from src.orchestration.workflows.simple_workflow import create_workflow
+        import os
+
+        # Initialize Ollama client and service
+        ollama_client = create_ollama_client(
+            base_url=os.getenv('OLLAMA_HOST', 'http://localhost:11434'),
+            model=os.getenv('OLLAMA_MODEL', 'qwen2.5')
+        )
+        
+        # Register LLM service
+        llm_service = LLMService(client=ollama_client)
+        self.service_registry.register(
+            name="llm",
+            service=llm_service,
+            description="Handles LLM interactions using Ollama",
+            version="1.0.0"
+        )
+        
+        # Register context service 
+        from src.skills.context.service import ContextService
+        context_service = ContextService(
+            message_repository=self.message_repository,
+            user_repository=self.user_repository
+        )
+        self.service_registry.register(
+            name="context",
+            service=context_service,
+            description="Manages conversation context",
+            version="1.0.0"
+        )
+
+        # Initialize workflow with registered services
+        self.workflow = create_workflow(self.service_registry)
+        
+        logger.info("Initialized LangGraph workflow and services")
     
     def _initialize_workflows(self) -> Dict[str, StateGraph]:
         """Initialize available workflows using LangGraph"""
@@ -60,44 +97,40 @@ class Agent:
             await adapter.stop()
 
     async def handle_event(self, event: CommunicationEvent) -> Optional[str]:
-        """
-        Process a communication event using LangGraph workflow
+        """Process a communication event using LangGraph workflow"""
+        logger.info(f"========== HANDLING EVENT ==========")
+        logger.info(f"Channel: {event.channel.type.value}")
+        logger.info(f"Content: {event.content[:100]}...")
         
-        This is the main entry point for the MCP architecture:
-        1. Event is converted to internal message format
-        2. Message is stored in context (memory)
-        3. LangGraph orchestrates the processing workflow
-        4. Response is returned to appropriate channel
-        """
-        logger.info(f"Received event from channel: {event.channel.type.value}")
-        logger.debug(f"Event details: user={event.user.username}, channel_id={event.channel.channel_id}")
-        
-        # Convert event to internal message format
         message = self._event_to_message(event)
-        logger.info(f"Converted to message: id={message.id}, conversation_id={message.conversation_id}")
+        logger.info(f"Converted to message ID: {message.id}")
         
-        # Store message in context (memory)
         self.message_repository.add(message)
-        logger.debug("Message stored in repository")
+        logger.info("Message stored in repository")
         
-        # Initialize workflow state
-        initial_state = WorkflowState(message=message)
+        # Prepare workflow input
+        initial_state = {
+            "message": message,
+            "context": {},
+            "response": ""
+        }
         
-        # Execute workflow through LangGraph
-        workflow = self.workflows["conversation"]
-        final_state = await workflow.execute(initial_state)
+        logger.info("Starting workflow execution...")
+        result = self.workflow.invoke(initial_state)
+        logger.info(f"Workflow execution completed with response: {bool(result.get('response'))}")
         
-        # Create and store response if generated
-        if final_state and final_state.llm_responses:
-            response = final_state.llm_responses[-1]
+        if result and result.get("response"):
+            response = result["response"]
+            logger.info(f"Response: {response[:100]}...")
+            
             response_message = self._create_response_message(
                 content=response,
                 reply_to_message=message
             )
             self.message_repository.add(response_message)
-            logger.info("Stored response message in repository")
             return response
             
+        logger.info("========== EVENT HANDLING COMPLETE ==========")
         return None
 
     def _event_to_message(self, event: CommunicationEvent) -> Message:
@@ -135,7 +168,7 @@ class Agent:
             type=MessageType.TEXT,
             author=author,
             conversation_id=reply_to_message.conversation_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             metadata={
                 "reply_to_message_id": reply_to_message.id
             }

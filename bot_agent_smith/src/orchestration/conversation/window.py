@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from src.core.types import Message, UserProfile
 
@@ -11,16 +11,16 @@ class ConversationWindow:
     user_profile: Optional[UserProfile]
     window_size: int = 10
     context_ttl: timedelta = timedelta(minutes=30)
-    last_updated: datetime = datetime.utcnow()
+    last_updated: datetime = datetime.now(UTC)
 
     def is_stale(self) -> bool:
-        return datetime.utcnow() - self.last_updated > self.context_ttl
+        return datetime.now(UTC) - self.last_updated > self.context_ttl
 
     def add_message(self, message: Message):
         self.messages.append(message)
         if len(self.messages) > self.window_size:
             self.messages = self.messages[-self.window_size:]
-        self.last_updated = datetime.utcnow()
+        self.last_updated = datetime.now(UTC)
 
     def get_context(self) -> Dict:
         """Returns the current conversation context in a format suitable for LLM input"""

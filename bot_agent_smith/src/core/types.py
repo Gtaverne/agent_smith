@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, UTC
 from enum import Enum
 import uuid
 
@@ -39,7 +39,7 @@ class Message:
     author: Author
     conversation_id: str
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     attachments: List[str] = field(default_factory=list)
     embedding: Optional[List[float]] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -82,8 +82,8 @@ class Conversation:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     messages: List[Message] = field(default_factory=list)
     participants: List[Author] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    last_message_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    last_message_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def add_message(self, message: Message):
@@ -133,8 +133,8 @@ class UserProfile:
     discord_id: str
     interests: List[str] = field(default_factory=list)
     conversation_ids: List[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    last_interaction: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    last_interaction: datetime = field(default_factory=lambda: datetime.now(UTC))
     embedding: Optional[List[float]] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 

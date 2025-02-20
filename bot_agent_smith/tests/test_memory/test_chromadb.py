@@ -1,6 +1,6 @@
 from src.core.types import Message, Author, MessageType, UserProfile
 from src.memory.chroma import ChromaClient, MessageRepository, UserRepository
-from datetime import datetime
+from datetime import datetime, UTC
 import uuid
 
 def test_chroma_integration():
@@ -99,5 +99,38 @@ def test_chroma_integration():
         
     print("\nAll tests passed successfully!")
 
+
+def reset_chroma_db():
+    """Reset all collections in ChromaDB"""
+    print("\nResetting ChromaDB...")
+    
+    # Initialize client
+    client = ChromaClient(
+        host="localhost",
+        port=8184
+    )
+    
+    # Get all collections
+    messages = client.messages.get()
+    conversations = client.conversations.get()
+    users = client.users.get()
+    
+    # Delete all data from each collection
+    if messages["ids"]:
+        client.messages.delete(ids=messages["ids"])
+        print(f"Deleted {len(messages['ids'])} messages")
+        
+    if conversations["ids"]:
+        client.conversations.delete(ids=conversations["ids"])
+        print(f"Deleted {len(conversations['ids'])} conversations")
+        
+    if users["ids"]:
+        client.users.delete(ids=users["ids"])
+        print(f"Deleted {len(users['ids'])} users")
+    
+    print("ChromaDB reset complete!")
+
+
 if __name__ == "__main__":
+    # reset_chroma_db()
     test_chroma_integration()

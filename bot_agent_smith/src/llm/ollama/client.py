@@ -1,7 +1,6 @@
 from urllib.parse import urljoin
-import json
 import httpx
-from typing import List, Optional
+from typing import List
 
 from .models import OllamaMessage, OllamaResponse
 
@@ -12,18 +11,16 @@ class OllamaClient:
         self.timeout = httpx.Timeout(timeout=120.0)
         
     def _get_completion_url(self) -> str:
-        return urljoin(self.base_url, "/api/chat")
+        return urljoin(self.base_url, "/api/generate")
         
     def send_message(self, messages: List[OllamaMessage]) -> OllamaResponse:
         url = self._get_completion_url()
         
+        # Format payload for Ollama
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": msg.role, "content": msg.content}
-                for msg in messages
-            ],
-            "stream": False  # Important: we want a single response
+            "prompt": "\n".join(msg.content for msg in messages),
+            "stream": False
         }
         
         with httpx.Client(timeout=self.timeout) as client:
@@ -33,8 +30,8 @@ class OllamaClient:
             
             return OllamaResponse(
                 model=data["model"],
-                created_at=data["created_at"],
-                response=data["message"]["content"],
-                done=data["done"],
+                created_at=data.get("created_at", ""),
+                response=data["response"],
+                done=True,
                 context=data.get("context")
             )

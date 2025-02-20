@@ -1,7 +1,7 @@
 from typing import Protocol, Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, UTC
 
 class ChannelType(Enum):
     DISCORD = "discord"

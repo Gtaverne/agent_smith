@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, UTC
 
 from src.core.types import Message, UserProfile
 
@@ -13,7 +13,7 @@ class WorkflowState:
     llm_responses: List[str] = field(default_factory=list)
     service_outputs: Dict[str, Any] = field(default_factory=dict)
     skills_used: List[str] = field(default_factory=list)
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=datetime.now(UTC))
     current_node: str = "start"
     
     def dict(self) -> Dict[str, Any]:

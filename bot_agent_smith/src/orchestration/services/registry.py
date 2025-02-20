@@ -1,6 +1,6 @@
 from typing import Dict, Type, Callable, Any, Protocol
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 
 class ServiceProtocol(Protocol):
     """Base protocol for services"""
@@ -11,7 +11,7 @@ class ServiceMetadata:
     name: str
     description: str
     version: str
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = datetime.now(UTC)
 
 class ServiceRegistry:
     def __init__(self):

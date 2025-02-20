@@ -63,7 +63,7 @@ class QualificationWorkflow:
     
     async def execute(self, message: Message) -> bool:
         initial_state = QualificationState(message=message)
-        final_state = await self.workflow.arun(initial_state.dict())
+        final_state = await self.workflow.ainvoke(initial_state.dict())
         return final_state.get("needs_counterpoints", False)
     
 @dataclass
@@ -80,16 +80,10 @@ class ConversationWorkflow:
         
         # Add nodes
         workflow.add_node("get_context", self._get_context)
-        workflow.add_node("analyze_intent", self._analyze_intent)
-        workflow.add_node("select_skills", self._select_skills)
-        workflow.add_node("execute_skills", self._execute_skills)
         workflow.add_node("generate_response", self._generate_response)
         
-        # Define edges
-        workflow.add_edge("get_context", "analyze_intent")
-        workflow.add_edge("analyze_intent", "select_skills")
-        workflow.add_edge("select_skills", "execute_skills")
-        workflow.add_edge("execute_skills", "generate_response")
+        # Define edges - simple linear flow
+        workflow.add_edge("get_context", "generate_response")
         workflow.add_edge("generate_response", END)
         
         return workflow
@@ -105,114 +99,68 @@ class ConversationWorkflow:
         
         return current_state.dict()
     
-    async def _analyze_intent(self, state: Dict) -> Dict:
-        """Analyze message intent using LLM"""
-        current_state = WorkflowState.from_dict(state)
-        logger.info("Analyzing message intent")
-        
-        llm_service = self.service_registry.get_service("llm")
-        messages = [
-            {
-                "role": "system",
-                "content": "Analyze the user's intent and categorize it into one of these types: QUESTION, STATEMENT, REQUEST, CHAT"
-            },
-            {
-                "role": "user",
-                "content": current_state.message.content
-            }
-        ]
-        
-        intent_analysis = llm_service.execute(messages=messages)
-        current_state.service_outputs["intent"] = intent_analysis
-        current_state.current_node = "analyze_intent"
-        
-        return current_state.dict()
-    
-    async def _select_skills(self, state: Dict) -> Dict:
-        """Select appropriate skills based on intent"""
-        current_state = WorkflowState.from_dict(state)
-        logger.info("Selecting skills based on intent")
-        
-        # Get intent from previous step
-        intent = current_state.service_outputs["intent"]
-        
-        # Use LLM to select appropriate skills
-        llm_service = self.service_registry.get_service("llm")
-        messages = [
-            {
-                "role": "system",
-                "content": """Based on the message intent, select appropriate skills to use.
-                Available skills: vision, web_search, reasoning, context.
-                Return a comma-separated list of skill names."""
-            },
-            {
-                "role": "user",
-                "content": f"Message: {current_state.message.content}\nIntent: {intent}"
-            }
-        ]
-        
-        skills_to_use = llm_service.execute(messages=messages)
-        current_state.skills_used = [s.strip() for s in skills_to_use.split(",")]
-        current_state.current_node = "select_skills"
-        
-        return current_state.dict()
-    
-    async def _execute_skills(self, state: Dict) -> Dict:
-        """Execute selected skills"""
-        current_state = WorkflowState.from_dict(state)
-        logger.info(f"Executing skills: {current_state.skills_used}")
-        
-        # Execute each selected skill
-        for skill_name in current_state.skills_used:
-            if skill_name in self.service_registry.services:
-                service = self.service_registry.get_service(skill_name)
-                result = service.execute(
-                    message=current_state.message,
-                    context=current_state.context
-                )
-                current_state.service_outputs[skill_name] = result
-        
-        current_state.current_node = "execute_skills"
-        return current_state.dict()
-    
     async def _generate_response(self, state: Dict) -> Dict:
-        """Generate final response using LLM"""
+        """Generate response using LLM"""
         current_state = WorkflowState.from_dict(state)
-        logger.info("Generating final response")
+        logger.info("Generating response using LLM")
+        
+        llm_service = self.service_registry.get_service("llm")
         
         # Prepare context for LLM
-        skill_outputs = "\n".join(
-            f"{skill}: {output}"
-            for skill, output in current_state.service_outputs.items()
-        )
+        context = current_state.context
+        conversation_history = context.get("messages", []) if context else []
         
-        llm_service = self.service_registry.get_service("llm")
         messages = [
             {
                 "role": "system",
-                "content": "You are Agent Smith. Generate a response based on the context and skill outputs."
-            },
-            {
-                "role": "user",
-                "content": f"""
-                User message: {current_state.message.content}
-                Context: {current_state.context}
-                Skill outputs: {skill_outputs}
+                "content": f"""You are Agent Smith, an AI assistant.
+                Your goal is to provide helpful and concise responses.
+                
+                User profile:
+                {context.get('user', 'No user profile available')}
                 """
             }
         ]
         
+        # Add conversation history
+        for msg in conversation_history[-3:]:  # Last 3 messages for context
+            messages.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
+            
+        # Add current message
+        messages.append({
+            "role": "user",
+            "content": current_state.message.content
+        })
+        
+        # Get response from LLM
         response = llm_service.execute(messages=messages)
         current_state.llm_responses.append(response)
         current_state.current_node = "generate_response"
         
+        logger.info("Generated response from LLM")
+        logger.debug(f"Response: {response[:100]}...")
+        
         return current_state.dict()
     
-    async def execute(self, message: Message) -> str:
+    async def execute(self, state: WorkflowState) -> str:
         """Execute the workflow for a message"""
-        initial_state = WorkflowState(message=message)
-        final_state = await self.workflow.arun(initial_state.dict())
+        logger.info("========== WORKFLOW EXECUTION ==========")
+        logger.info(f"Starting workflow for message: {state.message.content[:100]}...")
         
-        # Return the last LLM response
+        logger.info("Running workflow through LangGraph")
+        final_state = await self.workflow.ainvoke(state.dict())
+        
         final_state_obj = WorkflowState.from_dict(final_state)
+        
+        if final_state_obj.llm_responses:
+            logger.info("Workflow completed with response")
+            logger.info(f"Final response: {final_state_obj.llm_responses[-1][:100]}...")
+        else:
+            logger.warning("Workflow completed without response")
+            
+        logger.info("========== WORKFLOW COMPLETE ==========")
+        
         return final_state_obj.llm_responses[-1] if final_state_obj.llm_responses else ""
