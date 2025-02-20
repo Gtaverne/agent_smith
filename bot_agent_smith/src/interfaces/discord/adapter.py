@@ -13,6 +13,14 @@ from src.interfaces.types import (
 
 class DiscordAdapter(ChannelAdapter):
     """Discord adapter that handles Discord-specific message conversion and communication"""
+    DISCORD_MSG_LIMIT = 2000  # Discord's message length limit
+    CHUNK_MARKER_TEMPLATE = "\n[Part {}/{}]"  # Format for chunk markers
+    SECTION_DELIMITERS = [
+        "\n\n**",  # Major section headers
+        "\n**",    # Secondary section headers
+        "\n\n",    # Double newline between paragraphs
+        "\n",      # Single newline (last resort)
+    ]    
     
     def __init__(self, token: str):
         self.token = token
@@ -53,13 +61,11 @@ class DiscordAdapter(ChannelAdapter):
             await self.client.close()
     
     async def send_message(self, channel_id: str, content: str, reply_to: Optional[str] = None) -> None:
-        """Send a message to a Discord channel"""
+        """Send a message to a Discord channel, chunking if necessary"""
         logger.info(f"Attempting to send message to channel {channel_id}: {content[:100]}...")
         
-        # Try getting the channel directly first
+        # Get channel
         channel = self.client.get_channel(int(channel_id))
-        
-        # If channel not found, it might be a DM - fetch the user and create DM channel
         if not channel:
             try:
                 user = await self.client.fetch_user(int(channel_id))
@@ -74,18 +80,22 @@ class DiscordAdapter(ChannelAdapter):
             
         logger.info(f"Found channel: {channel.__class__.__name__}")
         
-        try:
-            if reply_to:
-                # Fetch and reply to the original message
-                message = await channel.fetch_message(int(reply_to))
-                await message.reply(content)
-                logger.info(f"Sent reply to message {reply_to}")
-            else:
-                # Send new message
-                await channel.send(content)
-                logger.info("Sent new message")
-        except Exception as e:
-            logger.error(f"Failed to send message: {str(e)}")
+        # Chunk the message
+        chunks = self._chunk_message(content)
+        
+        # Send each chunk
+        for i, chunk in enumerate(chunks):
+            formatted_chunk = self._format_chunk(chunk, i, len(chunks))
+            try:
+                if reply_to and i == 0:  # Only reply with the first chunk
+                    message = await channel.fetch_message(int(reply_to))
+                    await message.reply(formatted_chunk)
+                    logger.info(f"Sent first chunk as reply to message {reply_to}")
+                else:
+                    await channel.send(formatted_chunk)
+                    logger.info(f"Sent chunk {i + 1}/{len(chunks)}")
+            except Exception as e:
+                logger.error(f"Failed to send message chunk {i + 1}/{len(chunks)}: {str(e)}")
     
     def convert_message(self, message: Message) -> CommunicationEvent:
         """Convert a Discord message to a CommunicationEvent"""
@@ -123,6 +133,82 @@ class DiscordAdapter(ChannelAdapter):
             channel=channel,
             timestamp=message.created_at or datetime.now(UTC),
             event_id=str(message.id),
-            reply_to=str(message.reference.message_id) if message.reference else None,
+            reply_to=str(message.reference.message_id) if message.reference  else None,
             attachments=attachments
         )
+    
+    def _find_best_split_point(self, content: str, limit: int) -> int:
+        """
+        Find the best point to split content, prioritizing:
+        1. Section headers
+        2. Paragraph breaks
+        3. Complete markdown blocks
+        """
+        for delimiter in self.SECTION_DELIMITERS:
+            # Look for delimiter within limit
+            last_position = content[:limit].rfind(delimiter)
+            if last_position > 0:
+                return last_position
+                
+        # If no natural delimiter found, try to avoid splitting markdown
+        # Look backwards from limit for ** to ensure we don't split bold text
+        markdown_end = content[:limit].rfind('**')
+        markdown_start = content[:markdown_end].rfind('**') if markdown_end > 0 else -1
+        
+        if markdown_start >= 0 and markdown_end > markdown_start:
+            # Found complete markdown block, split after it
+            return markdown_end + 2
+            
+        # Last resort: split at last space
+        last_space = content[:limit].rfind(' ')
+        return last_space if last_space > 0 else limit
+
+    def _chunk_message(self, content: str) -> list[str]:
+        """
+        Split a message into chunks that respect both Discord's length limit
+        and content structure.
+        """
+        if len(content) <= self.DISCORD_MSG_LIMIT:
+            return [content]
+            
+        chunks = []
+        remaining = content
+        
+        while remaining:
+            # Calculate space needed for chunk marker
+            marker_space = len(self.CHUNK_MARKER_TEMPLATE.format(1, 1))
+            available_space = self.DISCORD_MSG_LIMIT - marker_space
+            
+            if len(remaining) <= available_space:
+                chunks.append(remaining)
+                break
+                
+            # Find best split point
+            split_point = self._find_best_split_point(remaining, available_space)
+            
+            # Add chunk and continue with remaining content
+            chunks.append(remaining[:split_point].strip())
+            remaining = remaining[split_point:].strip()
+            
+            # If we can't make progress, force a split
+            if not remaining:
+                break
+                
+        return chunks
+
+    def _format_chunk(self, chunk: str, index: int, total: int) -> str:
+        """
+        Format a chunk by adding the part indicator.
+        """
+        # Only add markers if there are multiple chunks
+        if total > 1:
+            marker = self.CHUNK_MARKER_TEMPLATE.format(index + 1, total)
+            
+            # Ensure chunk plus marker doesn't exceed limit
+            available_space = self.DISCORD_MSG_LIMIT - len(marker)
+            if len(chunk) > available_space:
+                chunk = chunk[:available_space]
+            
+            return chunk + marker
+        
+        return chunk

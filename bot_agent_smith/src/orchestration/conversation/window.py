@@ -17,18 +17,28 @@ class ConversationWindow:
         return datetime.now(UTC) - self.last_updated > self.context_ttl
 
     def add_message(self, message: Message):
+        # Don't add if it's a duplicate of the last message
+        if self.messages and self._is_duplicate(message, self.messages[-1]):
+            return
+            
         self.messages.append(message)
         if len(self.messages) > self.window_size:
             self.messages = self.messages[-self.window_size:]
         self.last_updated = datetime.now(UTC)
 
+    def _is_duplicate(self, msg1: Message, msg2: Message) -> bool:
+        """Check if two messages are duplicates based on content and timing"""
+        content_match = msg1.content == msg2.content
+        author_match = msg1.author.id == msg2.author.id
+        time_close = abs((msg1.timestamp - msg2.timestamp).total_seconds()) < 5
+        return content_match and author_match and time_close
+
     def get_context(self) -> Dict:
         """Returns the current conversation context in a format suitable for LLM input"""
-        # First, let's deduplicate messages based on content and adjacent timestamps
+        # First, deduplicate messages based on content, author and timestamp
         deduped_messages = []
         for msg in self.messages:
-            if not deduped_messages or \
-               deduped_messages[-1].content != msg.content:
+            if not deduped_messages or not self._is_duplicate(msg, deduped_messages[-1]):
                 deduped_messages.append(msg)
 
         return {
