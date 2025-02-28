@@ -1,6 +1,6 @@
 from discord import Message, Client, Intents, DMChannel, TextChannel
-from typing import Optional, Protocol
-from datetime import datetime, UTC
+from typing import Optional, Protocol, Dict
+from datetime import datetime, UTC, timedelta
 
 from src.core.logger import logger
 from src.interfaces.types import (
@@ -10,6 +10,48 @@ from src.interfaces.types import (
     UserInfo,
     CommunicationEvent
 )
+
+class ConversationTracker:
+    """Tracks active conversations to help with context management"""
+    
+    def __init__(self, conversation_timeout: timedelta = timedelta(minutes=15)):
+        self.active_conversations: Dict[str, datetime] = {}
+        self.conversation_timeout = conversation_timeout
+    
+    def mark_active(self, conversation_id: str):
+        """Mark a conversation as active"""
+        self.active_conversations[conversation_id] = datetime.now(UTC)
+        self._cleanup_stale()
+    
+    def get_active_conversations(self):
+        """Get list of active conversation IDs"""
+        self._cleanup_stale()
+        return list(self.active_conversations.keys())
+    
+    def is_active(self, conversation_id: str) -> bool:
+        """Check if a conversation is currently active"""
+        if conversation_id not in self.active_conversations:
+            return False
+        
+        # Check if conversation has timed out
+        last_activity = self.active_conversations[conversation_id]
+        if datetime.now(UTC) - last_activity > self.conversation_timeout:
+            del self.active_conversations[conversation_id]
+            return False
+            
+        return True
+    
+    def _cleanup_stale(self):
+        """Remove stale conversations"""
+        now = datetime.now(UTC)
+        stale_convs = [
+            conv_id for conv_id, last_time in self.active_conversations.items()
+            if now - last_time > self.conversation_timeout
+        ]
+        
+        for conv_id in stale_convs:
+            del self.active_conversations[conv_id]
+
 
 class DiscordAdapter(ChannelAdapter):
     """Discord adapter that handles Discord-specific message conversion and communication"""
@@ -26,6 +68,7 @@ class DiscordAdapter(ChannelAdapter):
         self.token = token
         self.client = None
         self._message_handler: Optional[Protocol] = None
+        self.conversation_tracker = ConversationTracker()
     
     def set_message_handler(self, handler: Protocol):
         """Set the function to be called when a message is received"""
@@ -46,6 +89,10 @@ class DiscordAdapter(ChannelAdapter):
                 return
                 
             logger.info(f"Discord message received from {message.author}: {message.content}")
+            
+            # Track conversation activity
+            conv_id = self._get_conversation_id(message)
+            self.conversation_tracker.mark_active(conv_id)
             
             if self._message_handler:
                 event = self.convert_message(message)
@@ -80,6 +127,9 @@ class DiscordAdapter(ChannelAdapter):
             
         logger.info(f"Found channel: {channel.__class__.__name__}")
         
+        # Mark this conversation as active
+        self.conversation_tracker.mark_active(channel_id)
+        
         # Chunk the message
         chunks = self._chunk_message(content)
         
@@ -100,7 +150,7 @@ class DiscordAdapter(ChannelAdapter):
     def convert_message(self, message: Message) -> CommunicationEvent:
         """Convert a Discord message to a CommunicationEvent"""
         # For DMs, use the user's ID as the channel ID
-        channel_id = str(message.author.id) if isinstance(message.channel, DMChannel) else str(message.channel.id)
+        channel_id = self._get_conversation_id(message)
         
         channel = Channel(
             type=ChannelType.DISCORD,
@@ -136,6 +186,14 @@ class DiscordAdapter(ChannelAdapter):
             reply_to=str(message.reference.message_id) if message.reference  else None,
             attachments=attachments
         )
+    
+    def _get_conversation_id(self, message: Message) -> str:
+        """Get the conversation ID from a Discord message"""
+        # For DMs, use the user's ID as the channel ID to ensure separate contexts
+        if isinstance(message.channel, DMChannel):
+            return str(message.author.id)
+        # For servers, use the channel ID
+        return str(message.channel.id)
     
     def _find_best_split_point(self, content: str, limit: int) -> int:
         """

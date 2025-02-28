@@ -10,6 +10,7 @@ from src.memory.chroma import MessageRepository, UserRepository
 from src.core.logger import logger
 from src.orchestration.workflows.workflow import ConversationWorkflow
 from src.orchestration.workflows.state import WorkflowState
+from src.orchestration.workflows.qualified_workflow import create_qualified_workflow
 
 @dataclass
 class Agent:
@@ -29,7 +30,10 @@ class Agent:
         # Initialize Ollama client and service
         from src.llm.ollama import create_ollama_client
         from src.llm.service import LLMService
-        from src.orchestration.workflows.simple_workflow import create_workflow
+        from src.skills.reasoning.qualifier import QualifierService
+        from src.skills.reasoning.keyword_extraction import KeywordExtractionService
+        from src.skills.web_search.article_search import ArticleSearchService
+        # from src.skills.reasoning.counter_argument import CounterArgumentService
         import os
 
         # Initialize Ollama client and service
@@ -59,9 +63,42 @@ class Agent:
             description="Manages conversation context",
             version="1.0.0"
         )
+        
+        # Register qualifier service
+        qualifier_service = QualifierService(
+            ollama_client=ollama_client,
+            message_repository=self.message_repository
+        )
+        self.service_registry.register(
+            name="qualifier",
+            service=qualifier_service,
+            description="Determines if a message needs counter-arguments",
+            version="1.0.0"
+        )
+        # Register keyword extraction service
+        keyword_extraction_service = KeywordExtractionService(
+            ollama_client=ollama_client
+        )
+        self.service_registry.register(
+            name="keyword_extraction",
+            service=keyword_extraction_service,
+            description="Extracts keywords from messages for article searches",
+            version="1.0.0"
+        )
 
-        # Initialize workflow with registered services
-        self.workflow = create_workflow(self.service_registry)
+        # Register article search service
+        article_search_service = ArticleSearchService(
+            ollama_client=ollama_client
+        )
+        self.service_registry.register(
+            name="article_search",
+            service=article_search_service,
+            description="Searches for articles based on keywords",
+            version="1.0.0"
+        )
+
+        # Initialize qualified workflow with registered services
+        self.workflow = create_qualified_workflow(self.service_registry)
         
         logger.info("Initialized LangGraph workflow and services")
     
@@ -112,7 +149,8 @@ class Agent:
         initial_state = {
             "message": message,
             "context": {},
-            "response": ""
+            "response": "",
+            "needs_counter_arguments": False
         }
         
         logger.info("Starting workflow execution...")
