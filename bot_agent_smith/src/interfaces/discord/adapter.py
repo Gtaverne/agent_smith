@@ -69,6 +69,7 @@ class DiscordAdapter(ChannelAdapter):
         self.client = None
         self._message_handler: Optional[Protocol] = None
         self.conversation_tracker = ConversationTracker()
+        self.processed_messages = set() 
     
     def set_message_handler(self, handler: Protocol):
         """Set the function to be called when a message is received"""
@@ -87,7 +88,19 @@ class DiscordAdapter(ChannelAdapter):
         async def on_message(message: Message):
             if message.author == self.client.user:
                 return
+            
+            # Check if we've already processed this message
+            if str(message.id) in self.processed_messages:
+                logger.info(f"Skipping already processed message: {message.id}")
+                return
                 
+            # Add to processed messages
+            self.processed_messages.add(str(message.id))
+            
+            # Limit the size of the processed messages set to prevent memory issues
+            if len(self.processed_messages) > 1000:
+                self.processed_messages = set(list(self.processed_messages)[-500:])
+            
             logger.info(f"Discord message received from {message.author}: {message.content}")
             
             # Track conversation activity

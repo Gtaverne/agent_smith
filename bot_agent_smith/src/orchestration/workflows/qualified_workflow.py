@@ -4,7 +4,6 @@ from src.orchestration.services.registry import ServiceRegistry
 from src.core.types import Message
 from src.core.logger import logger
 
-# Define the workflow state with additional fields for counter-arguments
 class QualifiedWorkflowState(TypedDict):
     message: Message
     context: dict
@@ -13,6 +12,8 @@ class QualifiedWorkflowState(TypedDict):
     keywords: list
     articles: list
     counter_arguments: list
+    messages_to_send: list
+    stage: str  
 
 def create_qualified_workflow(service_registry: ServiceRegistry):
     """
@@ -22,6 +23,11 @@ def create_qualified_workflow(service_registry: ServiceRegistry):
     
     def qualify_message(state: QualifiedWorkflowState):
         """Determine if the message needs counter-arguments using QualifierService"""
+        # Skip qualification if requested
+        if state.get("_skip_qualification", False):
+            logger.info("Skipping qualification as requested")
+            return {}
+            
         logger.info(f"Qualifying message: {state['message'].content[:100]}...")
         
         # Get the qualifier service
@@ -32,7 +38,27 @@ def create_qualified_workflow(service_registry: ServiceRegistry):
         
         logger.info(f"Qualification result: needs_counter_arguments={needs_counter_arguments}")
         
+        # If we're only running qualification, return early
+        if state.get("_run_qualification_only", False):
+            logger.info("Returning after qualification as requested")
+            return {"needs_counter_arguments": needs_counter_arguments}
+        
         return {"needs_counter_arguments": needs_counter_arguments}
+    
+    def prepare_acknowledgment(state: QualifiedWorkflowState):
+        """Create acknowledgment message for counter-argument search"""
+        logger.info("Creating acknowledgment for counter-argument search")
+        
+        # Initialize or get existing messages array
+        messages_to_send = state.get("messages_to_send", [])
+        
+        # Add acknowledgment message
+        messages_to_send.append({
+            "content": "🔄 I'm looking for different perspectives on this topic. I'll share what I find shortly...",
+            "type": "acknowledgment"
+        })
+        
+        return {"messages_to_send": messages_to_send}
 
     def get_context(state: QualifiedWorkflowState):
         """Get context using ContextService"""
@@ -244,7 +270,7 @@ def create_qualified_workflow(service_registry: ServiceRegistry):
             # Fallback to standard response if no counter-arguments found
             return "standard_response"
 
-    # Create the workflow graph
+     # Create the workflow graph
     workflow = StateGraph(QualifiedWorkflowState)
     
     # Add nodes
@@ -255,7 +281,7 @@ def create_qualified_workflow(service_registry: ServiceRegistry):
     workflow.add_node("analyze_counter_arguments", analyze_counter_arguments)
     workflow.add_node("standard_response", generate_standard_response)
     workflow.add_node("counter_argument_response", generate_counter_argument_response)
-
+    workflow.add_node("prepare_acknowledgment", prepare_acknowledgment)
     
     # Define edges
     workflow.add_edge(START, "qualification")
@@ -267,11 +293,12 @@ def create_qualified_workflow(service_registry: ServiceRegistry):
         route_by_qualification,
         {
             "standard_response": "standard_response",
-            "extract_keywords": "extract_keywords"
+            "extract_keywords": "prepare_acknowledgment"
         }
     )
-    
+
     # Define counter-argument workflow path
+    workflow.add_edge("prepare_acknowledgment", "extract_keywords")
     workflow.add_edge("extract_keywords", "search_for_articles")
     workflow.add_edge("search_for_articles", "analyze_counter_arguments")
     

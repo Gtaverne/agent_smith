@@ -11,6 +11,9 @@ from src.core.logger import logger
 from src.orchestration.workflows.workflow import ConversationWorkflow
 from src.orchestration.workflows.state import WorkflowState
 from src.orchestration.workflows.qualified_workflow import create_qualified_workflow
+import asyncio
+from collections import deque
+
 
 @dataclass
 class Agent:
@@ -99,21 +102,21 @@ class Agent:
 
         # Initialize qualified workflow with registered services
         self.workflow = create_qualified_workflow(self.service_registry)
-        
+
         logger.info("Initialized LangGraph workflow and services")
     
-    def _initialize_workflows(self) -> Dict[str, StateGraph]:
-        """Initialize available workflows using LangGraph"""
-        workflows = {}
+    # def _initialize_workflows(self) -> Dict[str, StateGraph]:
+    #     """Initialize available workflows using LangGraph"""
+    #     workflows = {}
         
-        # Initialize conversation workflow
-        conversation_workflow = ConversationWorkflow(
-            service_registry=self.service_registry
-        )
-        workflows["conversation"] = conversation_workflow
+    #     # Initialize conversation workflow
+    #     conversation_workflow = ConversationWorkflow(
+    #         service_registry=self.service_registry
+    #     )
+    #     workflows["conversation"] = conversation_workflow
         
-        logger.info("Initialized LangGraph workflows")
-        return workflows
+    #     logger.info("Initialized LangGraph workflows")
+    #     return workflows
     
     def register_adapter(self, channel_type: str, adapter: ChannelAdapter):
         """Register a new channel adapter"""
@@ -121,53 +124,98 @@ class Agent:
         logger.info(f"Registered adapter for channel type: {channel_type}")
         
     async def start(self):
-        """Start all registered adapters"""
+        """Start all registered adapters and the message queue"""
         for channel_type, adapter in self.adapters.items():
             logger.info(f"Starting adapter for channel: {channel_type}")
             await adapter.initialize()
             await adapter.start()
             
     async def stop(self):
-        """Stop all registered adapters"""
+        """Stop all registered adapters and the message queue processor"""
+                
+        # Stop adapters
         for channel_type, adapter in self.adapters.items():
             logger.info(f"Stopping adapter for channel: {channel_type}")
             await adapter.stop()
 
+    processed_events = set()  # Track already processed event IDs
+
     async def handle_event(self, event: CommunicationEvent) -> Optional[str]:
         """Process a communication event using LangGraph workflow"""
+        # Simple duplication prevention
+        if event.event_id in self.processed_events:
+            logger.info(f"Event {event.event_id} already processed, skipping")
+            return None
+            
+        self.processed_events.add(event.event_id)
+        
         logger.info(f"========== HANDLING EVENT ==========")
         logger.info(f"Channel: {event.channel.type.value}")
         logger.info(f"Content: {event.content[:100]}...")
         
+        # Convert event to message
         message = self._event_to_message(event)
         logger.info(f"Converted to message ID: {message.id}")
         
+        # Store message in repository
         self.message_repository.add(message)
         logger.info("Message stored in repository")
         
-        # Prepare workflow input
-        initial_state = {
+        # Qualify the message
+        qualifier_service = self.service_registry.get_service("qualifier")
+        needs_counter_arguments = qualifier_service.execute(message=message)
+        logger.info(f"Qualification result: {needs_counter_arguments}")
+        
+        # If counter-arguments needed, send acknowledgment first
+        if needs_counter_arguments:
+            channel_adapter = self.adapters.get(event.channel.type.value)
+            if channel_adapter:
+                ack_message = "🔄 I'm looking for different perspectives on this topic. I'll share what I find shortly..."
+                
+                await channel_adapter.send_message(
+                    channel_id=event.channel.channel_id,
+                    content=ack_message,
+                    reply_to=event.event_id
+                )
+                
+                # Store acknowledgment
+                ack = self._create_response_message(
+                    content=ack_message,
+                    reply_to_message=message
+                )
+                self.message_repository.add(ack)
+        
+        # Set up workflow input with qualification result already set
+        workflow_input = {
             "message": message,
             "context": {},
             "response": "",
-            "needs_counter_arguments": False
+            "needs_counter_arguments": needs_counter_arguments,
+            "keywords": [],
+            "articles": [],
+            "counter_arguments": [],
+            "messages_to_send": [],
+            "_skip_qualification": True  # Skip qualification in workflow
         }
         
-        logger.info("Starting workflow execution...")
-        result = self.workflow.invoke(initial_state)
-        logger.info(f"Workflow execution completed with response: {bool(result.get('response'))}")
+        # Process through workflow
+        result = self.workflow.invoke(workflow_input)
         
+        # Send final response
         if result and result.get("response"):
             response = result["response"]
-            logger.info(f"Response: {response[:100]}...")
+            logger.info(f"Final response: {response[:100]}...")
             
+            # Store response in repository (still do this)
             response_message = self._create_response_message(
                 content=response,
                 reply_to_message=message
             )
             self.message_repository.add(response_message)
-            return response
             
+            # Just return the response, don't send it
+            return response
+        
         logger.info("========== EVENT HANDLING COMPLETE ==========")
         return None
 
