@@ -2,13 +2,12 @@ from dataclasses import dataclass
 from typing import List, Dict, Any
 
 from src.core.logger import logger
-from src.llm.ollama import OllamaClient, OllamaMessage
 from src.orchestration.services.registry import ServiceProtocol
 
 @dataclass
 class KeywordExtractionService(ServiceProtocol):
     """Service that extracts keywords from a message for searching articles"""
-    ollama_client: OllamaClient
+    ollama_client: Any  # Parameter name kept for backward compatibility
     
     def execute(self, message_content: str, **kwargs) -> List[str]:
         """
@@ -22,34 +21,65 @@ class KeywordExtractionService(ServiceProtocol):
         """
         logger.info(f"Extracting keywords from: {message_content[:100]}...")
         
-        # Create messages for Ollama
-        messages = [
-            OllamaMessage(
-                role="system",
-                content="""You are a keyword extraction system that identifies the most relevant 
-                search terms from a user's message or conversation.
-                
-                Extract exactly 3 keywords or short phrases that:
-                1. Capture the main topic being discussed
-                2. Are suitable for searching for articles on this topic
-                3. Would help find diverse perspectives on the topic
-                
-                Format your response as a JSON list of exactly 3 strings, nothing else:
-                ["keyword1", "keyword2", "keyword3"]
-                """
-            ),
-            OllamaMessage(
-                role="user",
-                content=f"""Extract the 3 most important keywords from this message:
-                
-                "{message_content}"
-                
-                Remember to respond with only a JSON array of 3 keywords.
-                """
-            )
-        ]
+        # System and user prompts
+        system_prompt = """You are a keyword extraction system that identifies the most relevant 
+        search terms from a user's message or conversation.
         
-        # Get response from Ollama
+        Extract exactly 3 keywords or short phrases that:
+        1. Capture the main topic being discussed
+        2. Are suitable for searching for articles on this topic
+        3. Would help find diverse perspectives on the topic
+        
+        Format your response as a JSON list of exactly 3 strings, nothing else:
+        ["keyword1", "keyword2", "keyword3"]
+        """
+        
+        user_prompt = f"""Extract the 3 most important keywords from this message:
+        
+        "{message_content}"
+        
+        Remember to respond with only a JSON array of 3 keywords.
+        """
+        
+        # Determine client type based on module name
+        client_module = type(self.ollama_client).__module__
+        
+        # Create messages for LLM based on client type
+        if "ollama" in client_module:
+            # Import here to avoid circular imports
+            from src.llm.ollama import OllamaMessage
+            messages = [
+                OllamaMessage(role="system", content=system_prompt),
+                OllamaMessage(role="user", content=user_prompt)
+            ]
+        elif "gcp_models" in client_module:
+            # Import here to avoid circular imports
+            from src.llm.gcp_models.models import GCPMessage
+            messages = [
+                GCPMessage(role="system", content=system_prompt),
+                GCPMessage(role="user", content=user_prompt)
+            ]
+        else:
+            # Generic approach for unknown client types
+            logger.warning(f"Unknown LLM client type in KeywordExtractionService: {client_module}")
+            # Create messages as properly formatted objects for this client type,
+            # not just dictionaries
+            from src.llm.service import LLMService
+            if isinstance(self.ollama_client, LLMService):
+                # If we have an LLMService, use dicts as it expects
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ]
+            else:
+                # Default case, let's try the GCPMessage format
+                from src.llm.gcp_models.models import GCPMessage
+                messages = [
+                    GCPMessage(role="system", content=system_prompt),
+                    GCPMessage(role="user", content=user_prompt)
+                ]
+        
+        # Get response from the LLM client
         response = self.ollama_client.send_message(messages)
         logger.info(f"Keyword extractor received response: {response.response}")
         
@@ -60,7 +90,7 @@ class KeywordExtractionService(ServiceProtocol):
             import re
             
             # Try to extract just the JSON array using regex in case there's extra text
-            json_match = re.search(r'\[.*?\]', response.response)
+            json_match = re.search(r'\[.*?\]', response.response, re.DOTALL)
             if json_match:
                 keywords_json = json_match.group(0)
                 keywords = json.loads(keywords_json)

@@ -1,0 +1,26 @@
+# Discord Bot Configuration
+DISCORD_TOKEN=your_discord_token_here
+WATCH_DIR=path_to_watch
+CHANNEL_ID=your_channel_id
+
+# Image storage configuration
+IMAGE_STORAGE_PATH=./data/images
+IMAGE_RETENTION_DAYS=30
+
+# Model Family Selection
+MODEL=GCP  # Options: GCP, OLLAMA
+
+# GCP configuration
+GCP_MODEL=gemini-1.0-pro  # or gemini-1.0-pro-vision for image capabilities
+GEMINI_API_KEY=your_api_key_here
+
+# Ollama configuration
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=qwen2.5
+
+# Vector Database Configuration
+CHROMA_HOST=localhost
+CHROMA_PORT=8184
+
+# Logging Configuration
+LOG_LEVEL=INFO
