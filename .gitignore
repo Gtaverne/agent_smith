@@ -19,3 +19,10 @@ client/node_modules
 */lib/
 */pyvenv.cfg
 .DS_Store
+
+# Terraform files
+**/Terraform.tfvars
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup

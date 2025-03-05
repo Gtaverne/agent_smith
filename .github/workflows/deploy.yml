@@ -1,0 +1,62 @@
+# .github/workflows/deploy.yml
+name: Deploy to GCP VM
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+    - name: Add host key
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+    
+    - name: Deploy to VM
+      env:
+        VM_HOST: ${{ secrets.VM_HOST }}
+        VM_USER: ${{ secrets.VM_USER }}
+        QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        QDRANT_URL: ${{ secrets.QDRANT_URL }}
+        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        GCP_MODEL: ${{ secrets.GCP_MODEL }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: |
+        # Create deployment directory
+        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "mkdir -p ~/agent_smith"
+        
+        # Copy code to VM
+        rsync -avz --exclude '.git' --exclude 'venv' --exclude '__pycache__' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
+        
+        # Create or update .env file with secrets
+        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cat > ~/agent_smith/.env << EOF
+        DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}
+        QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
+        QDRANT_URL=${{ secrets.QDRANT_URL }}
+        GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+        GCP_MODEL=${{ secrets.GCP_MODEL }}
+        GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+        VECTOR_DB_TYPE=qdrant
+        DEFAULT_MODEL=GCP
+        MODELS=["GCP"]
+
+        LOG_LEVEL=INFO
+
+        EOF"
+        
+        # Run setup script
+        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cd ~/agent_smith && bash setup.sh"
+        
+        # Restart systemd service
+        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "sudo systemctl restart agent-smith.service"
