@@ -8,7 +8,7 @@ import os
 from src.core.types import Message, Author, MessageType
 from src.skills.reasoning.qualifier import QualifierService
 from src.llm.ollama import create_ollama_client
-from src.memory.chroma import ChromaClient, MessageRepository
+from src.memory import create_vector_db_client, create_message_repository
 from src.orchestration.services.registry import ServiceRegistry
 
 def create_test_message(content: str, conversation_id: str = None) -> Message:
@@ -39,11 +39,12 @@ def test_qualifier_service():
         model=os.getenv('OLLAMA_MODEL')
     )
     
-    chroma = ChromaClient(
+    vector_db_client = create_vector_db_client(
+        db_type=os.getenv('VECTOR_DB_TYPE', 'chroma'),
         host=os.getenv('CHROMA_HOST', 'localhost'),
         port=int(os.getenv('CHROMA_PORT', '8184'))
     )
-    message_repo = MessageRepository(chroma)
+    message_repo = create_message_repository(vector_db_client)
     
     service = QualifierService(
         ollama_client=client,
@@ -132,11 +133,12 @@ def test_qualifier_in_registry():
         model=os.getenv('OLLAMA_MODEL')
     )
     
-    chroma = ChromaClient(
+    vector_db_client = create_vector_db_client(
+        db_type=os.getenv('VECTOR_DB_TYPE', 'chroma'),
         host=os.getenv('CHROMA_HOST', 'localhost'),
         port=int(os.getenv('CHROMA_PORT', '8184'))
     )
-    message_repo = MessageRepository(chroma)
+    message_repo = create_message_repository(vector_db_client)
     
     service = QualifierService(
         ollama_client=client,

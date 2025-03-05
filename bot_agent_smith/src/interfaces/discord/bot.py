@@ -1,5 +1,3 @@
-# src/interfaces/discord/bot.py
-
 from discord.ext import commands
 from discord import Intents
 import uuid
@@ -9,11 +7,11 @@ from src.core.logger import logger
 from src.core.agent import Agent
 from src.interfaces.discord.adapter import DiscordAdapter
 from src.interfaces.types import ChannelType
-from src.memory.chroma import ChromaClient, MessageRepository, UserRepository
 from src.orchestration.services.registry import ServiceRegistry
+from src.memory import create_vector_db_client, create_message_repository, create_user_repository
 
 class AgentSmithBot(commands.Bot):
-    def __init__(self):
+    def __init__(self, message_repository=None, user_repository=None):
         # Set up Discord intents
         intents = Intents.default()
         intents.message_content = True
@@ -22,14 +20,17 @@ class AgentSmithBot(commands.Bot):
         
         # Initialize core components
         self.service_registry = ServiceRegistry()
-        self.chroma = ChromaClient(
-            host=os.getenv('CHROMA_HOST', 'localhost'),
-            port=int(os.getenv('CHROMA_PORT', '8184'))
-        )
         
-        # Initialize repositories
-        self.message_repository = MessageRepository(self.chroma)
-        self.user_repository = UserRepository(self.chroma)
+        # Initialize repositories if not provided
+        if message_repository is None or user_repository is None:
+            # Create default vector DB client and repositories
+            vector_db_client = create_vector_db_client()
+            self.message_repository = create_message_repository(vector_db_client)
+            self.user_repository = create_user_repository(vector_db_client)
+        else:
+            # Use provided repositories
+            self.message_repository = message_repository
+            self.user_repository = user_repository
         
         # Initialize agent
         self.agent = Agent(

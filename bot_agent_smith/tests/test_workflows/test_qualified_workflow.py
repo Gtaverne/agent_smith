@@ -4,7 +4,7 @@ from src.orchestration.services.registry import ServiceRegistry
 from src.core.types import Message, Author, MessageType
 from src.llm.ollama import create_ollama_client
 from src.llm.service import LLMService
-from src.memory.chroma import ChromaClient, MessageRepository, UserRepository
+from src.memory import create_vector_db_client, create_message_repository, create_user_repository
 from src.skills.context.service import ContextService
 from src.skills.reasoning.qualifier import QualifierService
 from src.skills.reasoning.keyword_extraction import KeywordExtractionService
@@ -21,15 +21,16 @@ def test_counter_argument_workflow():
     # Initialize services
     print("\nInitializing services...")
     
-    # Create ChromaDB client
-    chroma = ChromaClient(
+    # Create Vector DB client
+    vector_db_client = create_vector_db_client(
+        db_type=os.getenv('VECTOR_DB_TYPE', 'chroma'),
         host=os.getenv('CHROMA_HOST', 'localhost'),
         port=int(os.getenv('CHROMA_PORT', '8184'))
     )
     
     # Initialize repositories
-    message_repo = MessageRepository(chroma)
-    user_repo = UserRepository(chroma)
+    message_repo = create_message_repository(vector_db_client)
+    user_repo = create_user_repository(vector_db_client)
     
     # Create Ollama client
     ollama_client = create_ollama_client(

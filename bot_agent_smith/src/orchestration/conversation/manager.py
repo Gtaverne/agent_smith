@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 
-from src.memory.chroma import MessageRepository, UserRepository
+from agent_smith.bot_agent_smith.src.memory.chroma_db.chroma import MessageRepository, UserRepository
 from src.core.types import Message
 from .window import ConversationWindow
 

@@ -4,7 +4,7 @@ from datetime import datetime, UTC
 
 from src.core.types import Message
 from src.core.logger import logger
-from src.memory.chroma import MessageRepository
+from src.memory.chroma_db.chroma import MessageRepository
 from src.orchestration.services.registry import ServiceProtocol
 
 @dataclass

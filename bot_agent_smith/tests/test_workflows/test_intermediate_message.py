@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, AsyncMock
 from src.core.agent import Agent
 from src.core.types import Message, Author, MessageType
 from src.interfaces.types import CommunicationEvent, Channel, UserInfo, ChannelType
-from src.memory.chroma import ChromaClient, MessageRepository, UserRepository
+from agent_smith.bot_agent_smith.src.memory.chroma_db.chroma import ChromaClient, MessageRepository, UserRepository
 from src.orchestration.services.registry import ServiceRegistry
 from src.llm.ollama import create_ollama_client
 

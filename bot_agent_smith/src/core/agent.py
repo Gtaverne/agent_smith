@@ -6,13 +6,14 @@ from langgraph.graph import StateGraph, END
 from src.interfaces.types import CommunicationEvent, ChannelAdapter
 from src.core.types import Message, Author, MessageType
 from src.orchestration.services.registry import ServiceRegistry
-from src.memory.chroma import MessageRepository, UserRepository
+from src.memory.interfaces import MessageRepository, UserRepository
 from src.core.logger import logger
 from src.orchestration.workflows.workflow import ConversationWorkflow
 from src.orchestration.workflows.state import WorkflowState
 from src.orchestration.workflows.qualified_workflow import create_qualified_workflow
 import asyncio
 from collections import deque
+
 
 
 @dataclass
@@ -37,6 +38,7 @@ class Agent:
         from src.skills.reasoning.keyword_extraction import KeywordExtractionService
         from src.skills.web_search.article_search import ArticleSearchService
         from src.skills.context.service import ContextService
+        from src.skills.embedding.service import EmbeddingService
         import os
 
         # Get available model families
@@ -96,6 +98,15 @@ class Agent:
         
         # Get the default LLM client for other services
         default_llm_client = create_llm_client(default_model)
+
+        # Initialize embedding service
+        embedding_service = EmbeddingService(model_name="all-MiniLM-L6-v2")
+        self.service_registry.register(
+            name="embedding",
+            service=embedding_service,
+            description="Creates vector embeddings from text",
+            version="1.0.0"
+        )
         
         # Register context service 
         context_service = ContextService(
@@ -176,7 +187,7 @@ class Agent:
         if event.event_id in self.processed_events:
             logger.info(f"Event {event.event_id} already processed, skipping")
             return None
-            
+                
         self.processed_events.add(event.event_id)
         
         logger.info(f"========== HANDLING EVENT ==========")
@@ -186,6 +197,11 @@ class Agent:
         # Convert event to message
         message = self._event_to_message(event)
         logger.info(f"Converted to message ID: {message.id}")
+        
+        # Add embedding to message
+        embedding_service = self.service_registry.get_service("embedding")
+        message = embedding_service.embed_message(message)
+        logger.info(f"Added embedding with dimension: {len(message.embedding)}")
         
         # Store message in repository
         self.message_repository.add(message)
@@ -279,7 +295,7 @@ class Agent:
             discord_id=f"bot_{self.agent_id}"
         )
         
-        return Message(
+        response_message = Message(
             content=content,
             type=MessageType.TEXT,
             author=author,
@@ -289,3 +305,9 @@ class Agent:
                 "reply_to_message_id": reply_to_message.id
             }
         )
+        
+        # Add embedding to response message
+        embedding_service = self.service_registry.get_service("embedding")
+        response_message = embedding_service.embed_message(response_message)
+        
+        return response_message

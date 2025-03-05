@@ -5,7 +5,7 @@ from src.orchestration.services.registry import ServiceRegistry
 from src.core.types import Message, Author, MessageType
 from src.llm.ollama import create_ollama_client
 from src.llm.service import LLMService
-from src.memory.chroma import ChromaClient, MessageRepository, UserRepository
+from agent_smith.bot_agent_smith.src.memory.chroma_db.chroma import ChromaClient, MessageRepository, UserRepository
 from src.skills.context.service import ContextService
 import os
 from datetime import datetime, UTC

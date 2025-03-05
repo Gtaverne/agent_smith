@@ -1,20 +1,20 @@
 from src.core.types import Message, Author, MessageType, UserProfile
-from src.memory.chroma import ChromaClient, MessageRepository, UserRepository
+from src.memory import create_vector_db_client, create_message_repository, create_user_repository
 from datetime import datetime, UTC
 import uuid
 
 def test_chroma_integration():
     print("\nStarting Chroma integration test...")
     
-    # Initialize client
-    client = ChromaClient(
+    # Initialize client and repositories
+    vector_db_client = create_vector_db_client(
+        db_type="chroma",
         host="localhost",
         port=8184
     )
     
-    # Initialize repositories
-    message_repo = MessageRepository(client)
-    user_repo = UserRepository(client)
+    message_repo = create_message_repository(vector_db_client)
+    user_repo = create_user_repository(vector_db_client)
     
     # Create test user with simple data
     user_id = str(uuid.uuid4())
@@ -89,48 +89,3 @@ def test_chroma_integration():
     print(f"\nSearch results: {len(search_results)} found")
     for msg in search_results:
         print(f"- {msg.content}")
-    
-        # Cleanup: delete only our test data
-        print("\nCleaning up the msg...")
-        client.messages.delete(ids=[msg.id])
-
-    print("\nCleaning up the author...")
-    client.users.delete(ids=[user.id])
-        
-    print("\nAll tests passed successfully!")
-
-
-def reset_chroma_db():
-    """Reset all collections in ChromaDB"""
-    print("\nResetting ChromaDB...")
-    
-    # Initialize client
-    client = ChromaClient(
-        host="localhost",
-        port=8184
-    )
-    
-    # Get all collections
-    messages = client.messages.get()
-    conversations = client.conversations.get()
-    users = client.users.get()
-    
-    # Delete all data from each collection
-    if messages["ids"]:
-        client.messages.delete(ids=messages["ids"])
-        print(f"Deleted {len(messages['ids'])} messages")
-        
-    if conversations["ids"]:
-        client.conversations.delete(ids=conversations["ids"])
-        print(f"Deleted {len(conversations['ids'])} conversations")
-        
-    if users["ids"]:
-        client.users.delete(ids=users["ids"])
-        print(f"Deleted {len(users['ids'])} users")
-    
-    print("ChromaDB reset complete!")
-
-
-if __name__ == "__main__":
-    # reset_chroma_db()
-    test_chroma_integration()
