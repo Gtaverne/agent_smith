@@ -42,7 +42,7 @@ def get_vector_db_config() -> Dict[str, Any]:
     return config
 
 def create_vector_db_client(
-    db_type: Literal["chroma", "gcp_vector_search"] = None,
+    db_type: Literal["chroma", "gcp_vector_search", "qdrant"] = None,
     **kwargs
 ) -> VectorDBClient:
     """

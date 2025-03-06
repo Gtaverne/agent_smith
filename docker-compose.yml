@@ -1,0 +1,7 @@
+services:
+  agent-smith:
+    build: 
+      context: ./bot_agent_smith  
+    env_file: ./bot_agent_smith/.env  
+    ports:
+      - "8000:8000" 
