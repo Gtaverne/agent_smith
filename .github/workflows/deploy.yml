@@ -32,12 +32,19 @@ jobs:
         GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         GCP_MODEL: ${{ secrets.GCP_MODEL }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      
       run: |
-        # Create deployment directory
+        # Test SSH connection first
+        echo "Testing SSH connection..."
+        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "echo 'SSH connection successful'"
+        
+        # Create deployment directory with verbose output
+        echo "Creating deployment directory..."
         ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "mkdir -p ~/agent_smith"
         
-        # Copy code to VM
-        rsync -avz --exclude '.git' --exclude 'venv' --exclude '__pycache__' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
+        # Try rsync with verbose output
+        echo "Copying files with rsync..."
+        rsync -avz --stats --exclude '.git' --exclude 'venv' --exclude '__pycache__' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
         
         # Create or update .env file with secrets
         ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cat > ~/agent_smith/.env << EOF
