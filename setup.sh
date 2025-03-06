@@ -6,6 +6,18 @@ set -e
 
 echo "Setting up Agent Smith..."
 
+# Remove any deadsnakes PPA configurations that might be causing issues
+if [ -f /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-*.list ]; then
+    echo "Removing deadsnakes PPA configuration..."
+    sudo rm /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-*.list
+fi
+
+# Also check and remove from the main sources.list if present
+if grep -q "ppa.launchpad.net/deadsnakes/ppa" /etc/apt/sources.list; then
+    echo "Removing deadsnakes PPA from sources.list..."
+    sudo sed -i '/ppa.launchpad.net\/deadsnakes\/ppa/d' /etc/apt/sources.list
+fi
+
 if ! command -v pyenv &> /dev/null; then
     echo "Installing pyenv and Python 3.12..."
     # Install build dependencies
