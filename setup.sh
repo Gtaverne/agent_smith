@@ -6,24 +6,54 @@ set -e
 
 echo "Setting up Agent Smith..."
 
-# Install Python 3.12 if not present
-if ! command -v python3.12 &> /dev/null; then
-    echo "Installing Python 3.12..."
+if ! command -v pyenv &> /dev/null; then
+    echo "Installing pyenv and Python 3.12..."
+    # Install build dependencies
     sudo apt-get update
-    sudo apt-get install -y software-properties-common
-    sudo add-apt-repository -y ppa:deadsnakes/ppa
-    sudo apt-get update
-    sudo apt-get install -y python3.12 python3.12-venv python3.12-dev
+    sudo apt-get install -y make build-essential libssl-dev zlib1g-dev \
+    libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev git
+
+    # Install pyenv
+    curl https://pyenv.run | bash
+    
+    # Set up environment variables for current session
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init --path)"
+    eval "$(pyenv init -)"
+    
+    # Add pyenv to .profile for persistence
+    echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile
+    echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.profile
+    echo 'eval "$(pyenv init --path)"' >> ~/.profile
+    echo 'eval "$(pyenv init -)"' >> ~/.profile
+    
+    # Install Python 3.12
+    pyenv install 3.12.0
+    pyenv global 3.12.0
+else
+    echo "pyenv already installed, checking Python version..."
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init --path)"
+    eval "$(pyenv init -)"
+    
+    if ! pyenv versions | grep -q 3.12; then
+        echo "Installing Python 3.12..."
+        pyenv install 3.12.0
+        pyenv global 3.12.0
+    fi
 fi
 
 # Create Python virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
     echo "Creating virtual environment with Python 3.12..."
-    python3.12 -m venv venv
+    python -m venv venv
 else
     echo "Updating existing virtual environment..."
     rm -rf venv
-    python3.12 -m venv venv
+    python -m venv venv
 fi
 
 # Activate virtual environment
