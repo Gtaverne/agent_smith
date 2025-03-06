@@ -38,14 +38,15 @@ class ArticleSearchService(ServiceProtocol):
         if articles:
             logger.info(f"Found {len(articles)} real articles from Google News")
             
-            # Enhance article content if needed
+            # Always fetch full content for each article
             for article in articles:
-                if not article.get("content") or len(article["content"]) < 100:
-                    logger.info(f"Fetching more content for article: {article['title']}")
-                    content = self.news_fetcher.get_article_content(article["url"])
-                    if content:
-                        logger.info(f"ARTICLE CONTENT:\n__________________\n{content[:100]}\n\n")
-                        article["content"] = content
+                logger.info(f"Fetching full content for article: {article['title']}")
+                content = self.news_fetcher.get_article_content(article["url"])
+                if content:
+                    article["content"] = content
+                    logger.info(f"Retrieved {len(content)} characters of content for: {article['title']}")
+                else:
+                    logger.warning(f"Failed to retrieve content for: {article['title']}")
             
             return articles
         

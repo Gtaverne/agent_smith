@@ -209,49 +209,78 @@ def create_qualified_workflow(service_registry: ServiceRegistry):
         counter_arguments = state["counter_arguments"]
         message_content = state["message"].content
         
+        # Create system message for multi-message response
+        system_message = {
+            "role": "system",
+            "content": f"""You are a helpful assistant that provides balanced perspectives.
+
+            The user has shared a viewpoint about "{message_content}", and you need to present 
+            alternative perspectives in MULTIPLE SEPARATE MESSAGES.
+
+            Format your response as follows:
+            1. FIRST MESSAGE: A brief introduction acknowledging their view and mentioning you'll share different perspectives
+            2. SEPARATE MESSAGES for each counter-argument (maximum 3), with each containing:
+            - A title for the perspective
+            - A brief explanation (2-3 sentences)
+            - The source link in format "[Source: Title](URL)"
+            3. FINAL MESSAGE: A brief balanced conclusion
+
+            IMPORTANT: Format your response as a JSON array of message objects, where each object has a "content" field.
+            Example: [{{"content": "First message..."}}, {{"content": "Second message..."}}]
+            """
+        }
+        
         # Format counter-arguments for the prompt
         counter_args_text = ""
         if counter_arguments:
-            counter_args_text = "Here are some alternative perspectives:\n\n"
+            counter_args_text = "Here are the alternative perspectives to include in separate messages:\n\n"
             for i, arg in enumerate(counter_arguments):
                 counter_args_text += f"{i+1}. **{arg.get('title', 'Alternative Perspective')}**\n"
                 counter_args_text += f"{arg.get('summary', 'No summary available')}\n"
                 counter_args_text += f"Source: [{arg.get('article_title', 'Article')}]({arg.get('article_url', '#')})\n\n"
         else:
-            counter_args_text = "I couldn't find specific counter-arguments, but here's a balanced perspective:\n\n"
+            counter_args_text = "I couldn't find specific counter-arguments, but generate balanced perspectives anyway."
         
-        # Create system message
-        system_message = {
-            "role": "system",
-            "content": f"""You are a helpful assistant that provides balanced perspectives.
-
-            The user has shared a viewpoint, and you should acknowledge their perspective
-            while also presenting alternative views in a respectful manner.
-            
-            Here is the counter-argument information you should incorporate into your response:
-            {counter_args_text}
-            
-            Format your response in a conversational but informative tone:
-            1. Start by mentioning: "🔄 I noticed this topic has different perspectives. Here's a more balanced view:"
-            2. Briefly acknowledge the user's perspective
-            3. Present the alternative perspectives with their supporting points
-            4. Conclude with a balanced summary that doesn't take a definitive stance
-            
-            Keep your response concise but informative.
-            """
-        }
-        
-        # Create user message including original content
+        # Create user message
         user_message = {
             "role": "user",
-            "content": message_content
+            "content": f"""User's statement: "{message_content}"
+
+            {counter_args_text}
+
+            Split your response into multiple messages as described, with the first acknowledging 
+            the user's perspective and indicating you'll share different viewpoints.
+            
+            Return ONLY the JSON array of messages.
+            """
         }
         
         # Execute LLM call
         messages = [system_message, user_message]
         response = llm_service.execute(messages=messages)
         
-        return {"response": response}
+        # Parse the response to extract multiple messages
+        try:
+            import json
+            import re
+            
+            # Try to extract the JSON array
+            json_match = re.search(r'\[.*\]', response, re.DOTALL)
+            if json_match:
+                messages_json = json_match.group(0)
+                messages_array = json.loads(messages_json)
+                
+                # Store the array of messages in the state
+                return {
+                    "response": messages_array[0]["content"] if messages_array else "I found some interesting perspectives on this topic.",
+                    "messages_to_send": messages_array
+                }
+            else:
+                # Fallback to original response
+                return {"response": response}
+        except Exception as e:
+            logger.error(f"Error parsing multi-message response: {e}")
+            return {"response": response}
     
 
     # Conditional edge function to route based on qualification and counter-arguments

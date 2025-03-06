@@ -247,8 +247,41 @@ class Agent:
         # Process through workflow
         result = self.workflow.invoke(workflow_input)
         
-        # Send final response
-        if result and result.get("response"):
+        # Check if we have multiple messages to send
+        if result and result.get("messages_to_send"):
+            messages_to_send = result.get("messages_to_send", [])
+            channel_adapter = self.adapters.get(event.channel.type.value)
+            
+            # Send each message with a small delay
+            import asyncio
+            
+            for i, msg_obj in enumerate(messages_to_send):
+                msg_content = msg_obj.get("content", "")
+                if msg_content:
+                    # Store message in repository
+                    response_message = self._create_response_message(
+                        content=msg_content,
+                        reply_to_message=message
+                    )
+                    self.message_repository.add(response_message)
+                    
+                    # Send to channel (only reply to original for first message)
+                    reply_to = event.event_id if i == 0 else None
+                    await channel_adapter.send_message(
+                        channel_id=event.channel.channel_id,
+                        content=msg_content,
+                        reply_to=reply_to
+                    )
+                    
+                    # Add a small delay between messages
+                    if i < len(messages_to_send) - 1:
+                        await asyncio.sleep(1)
+            
+            # Return the first message as the "main" response
+            return messages_to_send[0].get("content") if messages_to_send else None
+        
+        # Original single message handling
+        elif result and result.get("response"):            
             response = result["response"]
             logger.info(f"Final response: {response[:100]}...")
             
