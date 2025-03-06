@@ -40,7 +40,7 @@ jobs:
         rsync -avz --exclude '.git' --exclude 'venv' --exclude '__pycache__' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
         
         # Create or update .env file with secrets
-        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cat > ~/agent_smith/.env << EOF
+        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cat > ~/agent_smith/.env << EOF
         DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}
         QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
         QDRANT_URL=${{ secrets.QDRANT_URL }}
@@ -49,10 +49,8 @@ jobs:
         GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
         VECTOR_DB_TYPE=qdrant
         DEFAULT_MODEL=GCP
-        MODELS=["GCP"]
-
+        MODELS=[\"GCP\"]
         LOG_LEVEL=INFO
-
         EOF"
         
         # Run setup script
