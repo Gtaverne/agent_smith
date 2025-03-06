@@ -6,20 +6,33 @@ set -e
 
 echo "Setting up Agent Smith..."
 
+# Install Python 3.12 if not present
+if ! command -v python3.12 &> /dev/null; then
+    echo "Installing Python 3.12..."
+    sudo apt-get update
+    sudo apt-get install -y software-properties-common
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt-get update
+    sudo apt-get install -y python3.12 python3.12-venv python3.12-dev
+fi
+
 # Create Python virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
+    echo "Creating virtual environment with Python 3.12..."
+    python3.12 -m venv venv
+else
+    echo "Updating existing virtual environment..."
+    rm -rf venv
+    python3.12 -m venv venv
 fi
 
 # Activate virtual environment
 source venv/bin/activate
 
-# Install uv if not installed
-if ! command -v uv &> /dev/null; then
-    echo "Installing uv..."
-    pip install uv
-fi
+# Install pip and uv
+echo "Installing pip and uv..."
+python -m pip install --upgrade pip
+python -m pip install uv
 
 # Install dependencies using uv
 echo "Installing dependencies with uv..."

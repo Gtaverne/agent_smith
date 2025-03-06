@@ -47,10 +47,10 @@ jobs:
         
         # Copy code to VM (from bot_agent_smith directory)
         echo "Copying files with rsync..."
-        rsync -avz --stats --exclude '.git' --exclude 'venv' --exclude '__pycache__' ./bot_agent_smith/ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
+        rsync -avz --stats --delete --exclude 'venv' --exclude '__pycache__' ./bot_agent_smith/ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
         
         # Copy setup script
-        rsync -avz --stats setup.sh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
+        rsync -avz --stats --delete setup.sh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
         
         # Create or update .env file with secrets
         ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cat > ~/agent_smith/.env << EOF
