@@ -163,3 +163,22 @@ class UserProfile:
             last_interaction=datetime.fromisoformat(data["last_interaction"]),
             embedding=data.get("embedding"),
         )
+    
+@dataclass
+class AgentResponse:
+    """Response from the agent containing one or more messages"""
+    messages: List[Dict[str, str]]  # List of message contents
+    needs_acknowledgment: bool = False  # Flag for immediate acknowledgment
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    @classmethod
+    def single_message(cls, content: str) -> 'AgentResponse':
+        """Create a response with a single message"""
+        return cls(messages=[{"content": content}])
+    
+    @classmethod
+    def with_acknowledgment(cls, acknowledgment_text: str, processing: bool = True) -> 'AgentResponse':
+        """Create a response with an acknowledgment that more is coming"""
+        response = cls(messages=[{"content": acknowledgment_text}], needs_acknowledgment=True)
+        response.metadata["processing"] = processing
+        return response

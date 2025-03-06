@@ -49,6 +49,11 @@ def create_qualified_workflow(service_registry: ServiceRegistry):
         """Create acknowledgment message for counter-argument search"""
         logger.info("Creating acknowledgment for counter-argument search")
         
+        # Skip preparing acknowledgment if we're running as a background task
+        # We've already sent the acknowledgment earlier
+        if state.get("_skip_acknowledgment", False):
+            return {}
+        
         # Initialize or get existing messages array
         messages_to_send = state.get("messages_to_send", [])
         
@@ -59,6 +64,7 @@ def create_qualified_workflow(service_registry: ServiceRegistry):
         })
         
         return {"messages_to_send": messages_to_send}
+
 
     def get_context(state: QualifiedWorkflowState):
         """Get context using ContextService"""

@@ -4,7 +4,7 @@ from datetime import datetime, UTC
 from langgraph.graph import StateGraph, END
 
 from src.interfaces.types import CommunicationEvent, ChannelAdapter
-from src.core.types import Message, Author, MessageType
+from src.core.types import Message, Author, MessageType, AgentResponse
 from src.orchestration.services.registry import ServiceRegistry
 from src.memory.interfaces import MessageRepository, UserRepository
 from src.core.logger import logger
@@ -181,13 +181,13 @@ class Agent:
 
     processed_events = set()  # Track already processed event IDs
 
-    async def handle_event(self, event: CommunicationEvent) -> Optional[str]:
+    async def handle_event(self, event: CommunicationEvent) -> AgentResponse:
         """Process a communication event using LangGraph workflow"""
         # Simple duplication prevention
         if event.event_id in self.processed_events:
             logger.info(f"Event {event.event_id} already processed, skipping")
             return None
-                
+                    
         self.processed_events.add(event.event_id)
         
         logger.info(f"========== HANDLING EVENT ==========")
@@ -212,24 +212,18 @@ class Agent:
         needs_counter_arguments = qualifier_service.execute(message=message)
         logger.info(f"Qualification result: {needs_counter_arguments}")
         
-        # If counter-arguments needed, send acknowledgment first
+        # IMPORTANT: If counter-arguments needed, send acknowledgment response immediately
         if needs_counter_arguments:
-            channel_adapter = self.adapters.get(event.channel.type.value)
-            if channel_adapter:
-                ack_message = "🔄 I'm looking for different perspectives on this topic. I'll share what I find shortly..."
-                
-                await channel_adapter.send_message(
-                    channel_id=event.channel.channel_id,
-                    content=ack_message,
-                    reply_to=event.event_id
-                )
-                
-                # Store acknowledgment
-                ack = self._create_response_message(
-                    content=ack_message,
-                    reply_to_message=message
-                )
-                self.message_repository.add(ack)
+            ack_message = "🔄 I'm looking for different perspectives on this topic. I'll share what I find shortly..."
+            # Store acknowledgment
+            ack = self._create_response_message(
+                content=ack_message,
+                reply_to_message=message
+            )
+            self.message_repository.add(ack)
+            
+            # Create response with special flag
+            return AgentResponse.with_acknowledgment(ack_message)
         
         # Set up workflow input with qualification result already set
         workflow_input = {
@@ -247,53 +241,39 @@ class Agent:
         # Process through workflow
         result = self.workflow.invoke(workflow_input)
         
-        # Check if we have multiple messages to send
-        if result and result.get("messages_to_send"):
-            messages_to_send = result.get("messages_to_send", [])
-            channel_adapter = self.adapters.get(event.channel.type.value)
-            
-            # Send each message with a small delay
-            import asyncio
-            
-            for i, msg_obj in enumerate(messages_to_send):
-                msg_content = msg_obj.get("content", "")
-                if msg_content:
-                    # Store message in repository
-                    response_message = self._create_response_message(
-                        content=msg_content,
-                        reply_to_message=message
-                    )
-                    self.message_repository.add(response_message)
-                    
-                    # Send to channel (only reply to original for first message)
-                    reply_to = event.event_id if i == 0 else None
-                    await channel_adapter.send_message(
-                        channel_id=event.channel.channel_id,
-                        content=msg_content,
-                        reply_to=reply_to
-                    )
-                    
-                    # Add a small delay between messages
-                    if i < len(messages_to_send) - 1:
-                        await asyncio.sleep(1)
-            
-            # Return the first message as the "main" response
-            return messages_to_send[0].get("content") if messages_to_send else None
-        
-        # Original single message handling
-        elif result and result.get("response"):            
-            response = result["response"]
-            logger.info(f"Final response: {response[:100]}...")
-            
-            # Store response in repository (still do this)
-            response_message = self._create_response_message(
-                content=response,
-                reply_to_message=message
-            )
-            self.message_repository.add(response_message)
-            
-            # Just return the response, don't send it
-            return response
+        # Handle the result
+        if result:
+            # Case: Multiple messages in result
+            if isinstance(result.get("messages_to_send"), list) and result["messages_to_send"]:
+                messages = result["messages_to_send"]
+                
+                # Store all messages in repository
+                for msg_obj in messages:
+                    content = msg_obj.get("content", "")
+                    if content:
+                        response_message = self._create_response_message(
+                            content=content,
+                            reply_to_message=message
+                        )
+                        self.message_repository.add(response_message)
+                
+                # Return structured response with all messages
+                return AgentResponse(messages=messages)
+                
+            # Case: Single message in result
+            elif result.get("response"):
+                content = result["response"]
+                logger.info(f"Final response: {content[:100]}...")
+                
+                # Store message in repository
+                response_message = self._create_response_message(
+                    content=content,
+                    reply_to_message=message
+                )
+                self.message_repository.add(response_message)
+                
+                # Return structured response with single message
+                return AgentResponse.single_message(content)
         
         logger.info("========== EVENT HANDLING COMPLETE ==========")
         return None
