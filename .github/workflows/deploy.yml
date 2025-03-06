@@ -32,19 +32,25 @@ jobs:
         GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         GCP_MODEL: ${{ secrets.GCP_MODEL }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      
       run: |
-        # Test SSH connection first
+        # Test SSH connection
         echo "Testing SSH connection..."
         ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "echo 'SSH connection successful'"
         
-        # Create deployment directory with verbose output
+        # Create deployment directory
         echo "Creating deployment directory..."
         ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "mkdir -p ~/agent_smith"
         
-        # Try rsync with verbose output
+        # Check if rsync is installed, install if not
+        echo "Checking for rsync..."
+        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "which rsync || sudo apt-get update && sudo apt-get install -y rsync"
+        
+        # Copy code to VM (from bot_agent_smith directory)
         echo "Copying files with rsync..."
-        rsync -avz --stats --exclude '.git' --exclude 'venv' --exclude '__pycache__' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
+        rsync -avz --stats --exclude '.git' --exclude 'venv' --exclude '__pycache__' ./bot_agent_smith/ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
+        
+        # Copy setup script
+        rsync -avz --stats setup.sh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
         
         # Create or update .env file with secrets
         ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cat > ~/agent_smith/.env << EOF
@@ -64,4 +70,4 @@ jobs:
         ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cd ~/agent_smith && bash setup.sh"
         
         # Restart systemd service
-        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "sudo systemctl restart agent-smith.service"
+        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "sudo systemctl restart agent-smith.service || echo 'Service not yet installed, will be created by setup.sh'"
