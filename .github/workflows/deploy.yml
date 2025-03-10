@@ -59,31 +59,31 @@ jobs:
           docker push ${{ env.IMAGE_NAME }}:latest
           docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
       
-          - name: Deploy to VM
-          uses: appleboy/ssh-action@master
-          with:
-            host: ${{ secrets.VM_IP }}
-            username: ${{ secrets.SSH_USERNAME }}
-            key: ${{ secrets.SSH_PRIVATE_KEY }}
-            script: |
-              # Configure Docker to use the VM's service account credentials
-              sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
-              gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
-              
-              # Pull the latest image
-              docker pull ${{ env.IMAGE_NAME }}:latest
-              
-              # Stop and remove existing container
-              docker stop agent-smith || true
-              docker rm agent-smith || true
-              
-              # Run the new container
-              docker run -d \
-                --name agent-smith \
-                --restart unless-stopped \
-                -v /opt/agent-smith/logs:/app/logs \
-                -e VECTOR_DB_TYPE="qdrant" \
-                -e QDRANT_URL="${{ secrets.QDRANT_URL }}" \
-                -e QDRANT_API_KEY="${{ secrets.QDRANT_API_KEY }}" \
-                -e DISCORD_TOKEN="${{ secrets.DISCORD_TOKEN }}" \
-                ${{ env.IMAGE_NAME }}:latest
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Configure Docker to use the VM's service account credentials
+            sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+            gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+            
+            # Pull the latest image
+            docker pull ${{ env.IMAGE_NAME }}:latest
+            
+            # Stop and remove existing container
+            docker stop agent-smith || true
+            docker rm agent-smith || true
+            
+            # Run the new container
+            docker run -d \
+              --name agent-smith \
+              --restart unless-stopped \
+              -v /opt/agent-smith/logs:/app/logs \
+              -e VECTOR_DB_TYPE="qdrant" \
+              -e QDRANT_URL="${{ secrets.QDRANT_URL }}" \
+              -e QDRANT_API_KEY="${{ secrets.QDRANT_API_KEY }}" \
+              -e DISCORD_TOKEN="${{ secrets.DISCORD_TOKEN }}" \
+              ${{ env.IMAGE_NAME }}:latest
