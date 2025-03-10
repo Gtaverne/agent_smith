@@ -1,73 +1,86 @@
-# .github/workflows/deploy.yml
-name: Deploy to GCP VM
+name: Build and Deploy Agent Smith
 
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  test:
+    name: Test (Placeholder)
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
+          uv pip install pytest
+          
+      - name: Placeholder tests
+        run: |
+          echo "Running placeholder tests"
+          # Create a dummy test that always passes
+          mkdir -p tests
+          echo 'def test_placeholder(): assert True' > tests/test_placeholder.py
+          pytest tests/
+
+  build-and-deploy:
+    name: Build and Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agent-smith/agent-smith
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.7.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-        
-    - name: Add host key
-      run: |
-        mkdir -p ~/.ssh
-        ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
-    
-    - name: Deploy to VM
-      env:
-        VM_HOST: ${{ secrets.VM_HOST }}
-        VM_USER: ${{ secrets.VM_USER }}
-        QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-        QDRANT_URL: ${{ secrets.QDRANT_URL }}
-        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-        GCP_MODEL: ${{ secrets.GCP_MODEL }}
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      run: |
-        # Test SSH connection
-        echo "Testing SSH connection..."
-        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "echo 'SSH connection successful'"
-        
-        # Create deployment directory
-        echo "Creating deployment directory..."
-        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "mkdir -p ~/agent_smith"
-        
-        # Check if rsync is installed, install if not
-        echo "Checking for rsync..."
-        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "which rsync || sudo apt-get update && sudo apt-get install -y rsync"
-        
-        # Copy code to VM (from bot_agent_smith directory)
-        echo "Copying files with rsync..."
-        rsync -avz --stats --delete --exclude 'venv' --exclude '__pycache__' ./bot_agent_smith/ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
-        
-        # Copy setup script
-        rsync -avz --stats --delete setup.sh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/agent_smith/
-        
-        # Create or update .env file with secrets
-        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cat > ~/agent_smith/.env << EOF
-        DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}
-        QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
-        QDRANT_URL=${{ secrets.QDRANT_URL }}
-        GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
-        GCP_MODEL=${{ secrets.GCP_MODEL }}
-        GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-        VECTOR_DB_TYPE=qdrant
-        DEFAULT_MODEL=GCP
-        MODELS=[\"GCP\"]
-        LOG_LEVEL=INFO
-        EOF"
-        
-        # Run setup script
-        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "cd ~/agent_smith && bash setup.sh"
-        
-        # Restart systemd service
-        ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "sudo systemctl restart agent-smith.service || echo 'Service not yet installed, will be created by setup.sh'"
+      - uses: actions/checkout@v3
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+      
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:latest .
+          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+      
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+      
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Pull the latest image
+            docker pull ${{ env.IMAGE_NAME }}:latest
+            
+            # Stop and remove existing container
+            docker stop agent-smith || true
+            docker rm agent-smith || true
+            
+            # Run the new container
+            docker run -d \
+              --name agent-smith \
+              --restart unless-stopped \
+              -v /opt/agent-smith/logs:/app/logs \
+              -e VECTOR_DB_TYPE="qdrant" \
+              -e QDRANT_URL="${{ secrets.QDRANT_URL }}" \
+              -e QDRANT_API_KEY="${{ secrets.QDRANT_API_KEY }}" \
+              -e DISCORD_TOKEN="${{ secrets.DISCORD_TOKEN }}" \
+              ${{ env.IMAGE_NAME }}:latest
