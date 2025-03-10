@@ -88,6 +88,6 @@ jobs:
               -e QDRANT_API_KEY="${{ secrets.QDRANT_API_KEY }}" \
               -e DISCORD_TOKEN="${{ secrets.DISCORD_TOKEN }}" \
               -e GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
-              -e GCP_MODEL="${{ secrets.GCP_MODEL }}" \ 
+              -e GCP_MODEL="${{ secrets.GCP_MODEL }}" \
               -e DEFAULT_MODEL="GCP" \
               ${{ env.IMAGE_NAME }}:latest
