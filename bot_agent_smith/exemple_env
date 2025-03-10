@@ -11,7 +11,7 @@ IMAGE_RETENTION_DAYS=30
 MODEL=GCP  # Options: GCP, OLLAMA
 
 # GCP configuration
-GCP_MODEL=gemini-1.0-pro  # or gemini-1.0-pro-vision for image capabilities
+GCP_MODEL=gemini-2.0-flash-lite
 GEMINI_API_KEY=your_api_key_here
 
 # Ollama configuration

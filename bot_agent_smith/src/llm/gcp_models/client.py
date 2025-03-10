@@ -14,7 +14,7 @@ class GCPClient:
         
         Args:
             api_key: Google API key for authentication
-            model: GCP model name to use (e.g., 'gemini-1.0-pro', 'gemini-1.0-pro-vision')
+            model: GCP model name to use (e.g., 'gemini-2.0-flash-lite', 'gemini-2.0-flash')
         """
         self.model = model
         self.api_key = api_key
