@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first to leverage Docker caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install playwright && \
+    playwright install --with-deps chromium
 
 # Copy application code
 COPY . .

@@ -5,7 +5,7 @@ module "vm" {
   region      = var.region
   zone        = var.zone
   environment = "dev"
-  machine_type = "e2-micro"
+  machine_type = "e2-small"
 }
 
 output "vm_ip" {
