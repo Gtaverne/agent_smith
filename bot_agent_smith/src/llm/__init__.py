@@ -55,6 +55,7 @@ def create_llm_client(model_family: Optional[str] = None) -> LLMClient:
     if model_family == 'GCP':
         api_key = os.getenv('GEMINI_API_KEY')
         model = os.getenv('GCP_MODEL', 'gemini-2.0-flash-lite')
+        logger.info(f"Using GCP model: {model}")
         
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
