@@ -6,6 +6,22 @@ resource "google_artifact_registry_repository" "agent_smith" {
   format        = "DOCKER"
 }
 
+# Create a service account for the VM
+resource "google_service_account" "vm_service_account" {
+  project      = var.project_id
+  account_id   = "agent-smith-vm-sa"
+  display_name = "Agent Smith VM Service Account"
+}
+
+# Grant Artifact Registry reader access
+resource "google_artifact_registry_repository_iam_member" "vm_reader" {
+  project    = var.project_id
+  location   = var.region
+  repository = google_artifact_registry_repository.agent_smith.name
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${google_service_account.vm_service_account.email}"
+}
+
 resource "google_compute_instance" "agent_smith_vm" {
   project      = var.project_id
   name         = "agent-smith-${var.environment}"
@@ -58,6 +74,11 @@ resource "google_compute_instance" "agent_smith_vm" {
     mkdir -p /opt/agent-smith/logs
     chmod -R 777 /opt/agent-smith/logs
   EOF
+
+  service_account {
+    email  = google_service_account.vm_service_account.email
+    scopes = ["cloud-platform"]
+  }
 
   tags = ["allow-ssh"]
 }
