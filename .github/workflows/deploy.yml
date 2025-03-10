@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.12'
           
       - name: Install dependencies
         run: |
@@ -51,8 +51,8 @@ jobs:
       
       - name: Build Docker image
         run: |
-          docker build -t ${{ env.IMAGE_NAME }}:latest .
-          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker build -t ${{ env.IMAGE_NAME }}:latest -f bot_agent_smith/Dockerfile bot_agent_smith/
+          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} -f bot_agent_smith/Dockerfile bot_agent_smith/
       
       - name: Push Docker image
         run: |
