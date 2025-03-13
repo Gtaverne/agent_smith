@@ -59,15 +59,15 @@ jobs:
           docker push ${{ env.IMAGE_NAME }}:latest
           docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
       
-          - name: Install dependencies on VM
-          uses: appleboy/ssh-action@master
-          with:
-            host: ${{ secrets.VM_IP }}
-            username: ${{ secrets.SSH_USERNAME }}
-            key: ${{ secrets.SSH_PRIVATE_KEY }}
-            script: |
-              sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
-              gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+      - name: Install dependencies on VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+            gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
         
       - name: Pull Docker image
         uses: appleboy/ssh-action@master
@@ -97,5 +97,5 @@ jobs:
               -e QDRANT_API_KEY="${{ secrets.QDRANT_API_KEY }}" \
               -e DISCORD_TOKEN="${{ secrets.DISCORD_TOKEN }}" \
               -e GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
-              -e DEFAULT_MODEL="GCP"
+              -e DEFAULT_MODEL="GCP" \
               ${{ env.IMAGE_NAME }}:latest
